@@ -1,18 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { benchCandidatesAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import './Modal.css';
 
 const BenchCandidateList = () => {
+  const navigate = useNavigate();
   const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [deletingAll, setDeletingAll] = useState(false);
+  const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [filters, setFilters] = useState({
     fullName: '',
     visaStatus: '',
     primarySkill: '',
-    state: ''
+    state: '',
+    experienceYears: '',
+    email: ''
   });
   const [showFilters, setShowFilters] = useState(false);
   const [pagination, setPagination] = useState({
@@ -75,7 +78,9 @@ const BenchCandidateList = () => {
       fullName: '',
       visaStatus: '',
       primarySkill: '',
-      state: ''
+      state: '',
+      experienceYears: '',
+      email: ''
     });
     setTimeout(() => fetchCandidates(0), 100);
   };
@@ -84,64 +89,16 @@ const BenchCandidateList = () => {
     setShowFilters(!showFilters);
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this bench candidate?')) {
-      try {
-        await benchCandidatesAPI.delete(id);
-        toast.success('Bench candidate deleted successfully');
-        fetchCandidates(pagination.page);
-      } catch (error) {
-        toast.error('Failed to delete bench candidate');
-      }
-    }
+  const handleCandidateSelect = (candidate) => {
+    setSelectedCandidate(candidate);
   };
 
-  const handleDeleteAll = async () => {
-    const confirmMessage = `Are you sure you want to delete ALL ${pagination.totalElements} bench candidates? This action cannot be undone.`;
-    
-    if (window.confirm(confirmMessage)) {
-      const doubleConfirm = window.confirm('This will permanently delete all bench candidates. Are you absolutely sure?');
-      
-      if (doubleConfirm) {
-        setDeletingAll(true);
-        try {
-          // Get all candidates first
-          const allCandidatesResponse = await benchCandidatesAPI.getAll({ size: 1000 });
-          const allCandidates = allCandidatesResponse.data.content || allCandidatesResponse.data;
-          
-          // Delete each candidate
-          const deletePromises = allCandidates.map(candidate => 
-            benchCandidatesAPI.delete(candidate.id)
-          );
-          
-          await Promise.all(deletePromises);
-          
-          toast.success(`Successfully deleted all ${allCandidates.length} bench candidates`);
-          fetchCandidates(0);
-        } catch (error) {
-          toast.error('Failed to delete all bench candidates');
-          console.error('Error deleting all candidates:', error);
-        } finally {
-          setDeletingAll(false);
-        }
-      }
+  const handleMoreDetails = () => {
+    if (!selectedCandidate) {
+      toast.error('Please select a candidate first');
+      return;
     }
-  };
-
-  const handleDownloadResume = async (id, filename) => {
-    try {
-      const response = await benchCandidatesAPI.downloadResume(id);
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', filename || `resume-${id}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      toast.error('Failed to download resume');
-    }
+    navigate(`/bench-candidates/detail/${selectedCandidate.id}`);
   };
 
   return (
@@ -160,6 +117,22 @@ const BenchCandidateList = () => {
         </div>
         <div style={{ display: 'flex', gap: '1rem' }}>
           <button
+            onClick={handleMoreDetails}
+            disabled={!selectedCandidate}
+            style={{
+              background: selectedCandidate ? '#10B981' : '#9CA3AF',
+              color: 'white',
+              border: 'none',
+              padding: '0.75rem 1rem',
+              borderRadius: '8px',
+              fontSize: '0.875rem',
+              cursor: selectedCandidate ? 'pointer' : 'not-allowed',
+              fontWeight: '500'
+            }}
+          >
+            📋 More Details
+          </button>
+          <button
             onClick={toggleFilters}
             style={{
               background: '#4F46E5',
@@ -168,43 +141,54 @@ const BenchCandidateList = () => {
               padding: '0.75rem 1rem',
               borderRadius: '8px',
               fontSize: '0.875rem',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              fontWeight: '500'
             }}
           >
             🔍 Filter
           </button>
-          {pagination.totalElements > 0 && (
-            <button
-              onClick={handleDeleteAll}
-              disabled={deletingAll}
-              style={{
-                background: '#EF4444',
-                color: 'white',
-                border: 'none',
-                padding: '0.75rem 1rem',
-                borderRadius: '8px',
-                fontSize: '0.875rem',
-                cursor: deletingAll ? 'not-allowed' : 'pointer',
-                opacity: deletingAll ? 0.6 : 1,
-                textDecoration: 'none'
-              }}
-            >
-              {deletingAll ? '🗑️ Deleting All...' : '🗑️ Delete All'}
-            </button>
-          )}
           <Link to="/bench-candidates/new" className="btn-primary" style={{ textDecoration: 'none' }}>
-            ➕ Add Bench Candidate
+            ➕ Add Candidate
           </Link>
         </div>
       </div>
 
+      {/* Selected Candidate Info */}
+      {selectedCandidate && (
+        <div style={{ 
+          background: '#EFF6FF', 
+          border: '1px solid #DBEAFE',
+          borderRadius: '8px', 
+          padding: '1rem',
+          marginBottom: '1rem',
+          fontSize: '0.875rem'
+        }}>
+          <span style={{ fontWeight: '600', color: '#1E40AF' }}>
+            Selected: {selectedCandidate.fullName} - {selectedCandidate.primarySkill} ({selectedCandidate.experienceYears} years)
+          </span>
+          <button 
+            onClick={() => setSelectedCandidate(null)}
+            style={{ 
+              background: 'transparent',
+              border: 'none',
+              color: '#1E40AF',
+              marginLeft: '1rem',
+              cursor: 'pointer',
+              fontWeight: '500'
+            }}
+          >
+            ✕ Clear Selection
+          </button>
+        </div>
+      )}
+
       {/* Filter Modal */}
       {showFilters && (
         <div className="modal-backdrop" onClick={toggleFilters}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h3 style={{ fontSize: '1.125rem', fontWeight: '600', margin: 0 }}>
-                Search & Filter
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '700px', maxHeight: '80vh' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: '600', margin: 0 }}>
+                Filter Candidates
               </h3>
               <button 
                 onClick={toggleFilters}
@@ -214,9 +198,9 @@ const BenchCandidateList = () => {
               </button>
             </div>
             
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
               <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label" style={{ marginBottom: '0.25rem', display: 'block' }}>Name</label>
+                <label className="form-label" style={{ marginBottom: '0.5rem', display: 'block', fontWeight: '500' }}>Name</label>
                 <input
                   type="text"
                   name="fullName"
@@ -227,20 +211,9 @@ const BenchCandidateList = () => {
                   style={{ padding: '0.5rem' }}
                 />
               </div>
+              
               <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label" style={{ marginBottom: '0.25rem', display: 'block' }}>Primary Skill</label>
-                <input
-                  type="text"
-                  name="primarySkill"
-                  className="form-input"
-                  value={filters.primarySkill}
-                  onChange={handleFilterChange}
-                  placeholder="e.g. Java, React..."
-                  style={{ padding: '0.5rem' }}
-                />
-              </div>
-              <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label" style={{ marginBottom: '0.25rem', display: 'block' }}>Visa Status</label>
+                <label className="form-label" style={{ marginBottom: '0.5rem', display: 'block', fontWeight: '500' }}>Visa Status</label>
                 <select
                   name="visaStatus"
                   className="form-input"
@@ -258,23 +231,63 @@ const BenchCandidateList = () => {
                   <option value="OTHER">Other</option>
                 </select>
               </div>
+
               <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label" style={{ marginBottom: '0.25rem', display: 'block' }}>State</label>
+                <label className="form-label" style={{ marginBottom: '0.5rem', display: 'block', fontWeight: '500' }}>Primary Skill</label>
+                <input
+                  type="text"
+                  name="primarySkill"
+                  className="form-input"
+                  value={filters.primarySkill}
+                  onChange={handleFilterChange}
+                  placeholder="e.g. Java, React..."
+                  style={{ padding: '0.5rem' }}
+                />
+              </div>
+
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label" style={{ marginBottom: '0.5rem', display: 'block', fontWeight: '500' }}>Experience Years</label>
+                <input
+                  type="number"
+                  name="experienceYears"
+                  className="form-input"
+                  value={filters.experienceYears}
+                  onChange={handleFilterChange}
+                  placeholder="e.g. 5"
+                  style={{ padding: '0.5rem' }}
+                />
+              </div>
+
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label" style={{ marginBottom: '0.5rem', display: 'block', fontWeight: '500' }}>State</label>
                 <input
                   type="text"
                   name="state"
                   className="form-input"
                   value={filters.state}
                   onChange={handleFilterChange}
-                  placeholder="e.g. CA, NY..."
+                  placeholder="e.g. TX"
+                  style={{ padding: '0.5rem' }}
+                />
+              </div>
+
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label" style={{ marginBottom: '0.5rem', display: 'block', fontWeight: '500' }}>Email</label>
+                <input
+                  type="text"
+                  name="email"
+                  className="form-input"
+                  value={filters.email}
+                  onChange={handleFilterChange}
+                  placeholder="Email address..."
                   style={{ padding: '0.5rem' }}
                 />
               </div>
             </div>
             
-            <div style={{ display: 'flex', gap: '1rem', marginTop: '1.25rem', justifyContent: 'flex-end' }}>
-              <button onClick={handleClearFilters} className="btn-secondary" style={{ padding: '0.5rem 1rem' }}>
-                Clear
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+              <button onClick={handleClearFilters} className="btn-secondary" style={{ padding: '0.75rem 1.5rem' }}>
+                Clear All
               </button>
               <button 
                 onClick={() => {
@@ -282,7 +295,7 @@ const BenchCandidateList = () => {
                   toggleFilters();
                 }} 
                 className="btn-primary"
-                style={{ padding: '0.5rem 1rem' }}
+                style={{ padding: '0.75rem 1.5rem' }}
               >
                 Apply Filters
               </button>
@@ -291,7 +304,7 @@ const BenchCandidateList = () => {
         </div>
       )}
 
-      {/* Candidates Display */}
+      {/* Table Style Candidates Display */}
       <div style={{ 
         background: 'white', 
         borderRadius: '12px', 
@@ -303,69 +316,97 @@ const BenchCandidateList = () => {
             Loading bench candidates...
           </div>
         ) : candidates.length > 0 ? (
-          <div style={{ padding: '1.5rem' }}>
-            {candidates.map((candidate) => (
+          <div style={{ padding: '0' }}>
+            {/* Table Header */}
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: '60px minmax(150px, 1fr) 100px 110px minmax(120px, 1fr) 80px minmax(250px, 2fr)',
+              background: '#F9FAFB',
+              padding: '1rem',
+              fontWeight: '600',
+              fontSize: '0.875rem',
+              color: '#374151',
+              borderBottom: '1px solid #E5E7EB',
+              position: 'sticky',
+              top: 0,
+              zIndex: 10,
+              gap: '0.5rem'
+            }}>
+              <div style={{ textAlign: 'center' }}>#</div>
+              <div>Name</div>
+              <div>Experience</div>
+              <div>Visa Status</div>
+              <div>Primary Skill</div>
+              <div>State</div>
+              <div>Email</div>
+            </div>
+
+            {/* Table Rows */}
+            {candidates.map((candidate, index) => (
               <div 
                 key={candidate.id}
+                onClick={() => handleCandidateSelect(candidate)}
                 style={{ 
-                  background: 'white', 
-                  borderRadius: '12px', 
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                  padding: '1.5rem',
-                  marginBottom: '1rem',
-                  border: '1px solid #E5E7EB'
+                  display: 'grid', 
+                  gridTemplateColumns: '60px minmax(150px, 1fr) 100px 110px minmax(120px, 1fr) 80px minmax(250px, 2fr)',
+                  padding: '1rem',
+                  fontSize: '0.875rem',
+                  borderBottom: '1px solid #F3F4F6',
+                  cursor: 'pointer',
+                  backgroundColor: selectedCandidate?.id === candidate.id ? '#EFF6FF' : 'white',
+                  transition: 'all 0.2s ease',
+                  minHeight: '60px',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}
+                onMouseEnter={(e) => {
+                  if (selectedCandidate?.id !== candidate.id) {
+                    e.currentTarget.style.backgroundColor = '#F9FAFB';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (selectedCandidate?.id !== candidate.id) {
+                    e.currentTarget.style.backgroundColor = 'white';
+                  }
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div style={{ flex: 1 }}>
-                    <h3 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#1F2937', marginBottom: '0.5rem' }}>
-                      <Link 
-                        to={`/bench-candidates/detail/${candidate.id}`}
-                        style={{ color: '#1F2937', textDecoration: 'none' }}
-                      >
-                        {candidate.fullName}
-                      </Link>
-                    </h3>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.5rem', marginBottom: '1rem' }}>
-                      <div><strong>Consultant:</strong> {candidate.assignedConsultantName || 'Unassigned'}</div>
-                      <div><strong>Skill:</strong> {candidate.primarySkill}</div>
-                      <div><strong>Experience:</strong> {candidate.experienceYears} years</div>
-                      <div><strong>Location:</strong> {candidate.city}, {candidate.state}</div>
-                      <div><strong>Visa:</strong> {candidate.visaStatus}</div>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: '0.5rem', flexDirection: 'column', minWidth: '120px' }}>
-                    <Link
-                      to={`/bench-candidates/detail/${candidate.id}`}
-                      style={{
-                        background: '#10B981',
-                        color: 'white',
-                        border: 'none',
-                        padding: '0.5rem 1rem',
-                        borderRadius: '8px',
-                        fontSize: '0.875rem',
-                        textDecoration: 'none',
-                        display: 'inline-block',
-                        textAlign: 'center'
-                      }}
-                    >
-                      More Details
-                    </Link>
-                    <button
-                      onClick={() => handleDelete(candidate.id)}
-                      style={{
-                        background: '#EF4444',
-                        color: 'white',
-                        border: 'none',
-                        padding: '0.5rem 1rem',
-                        borderRadius: '8px',
-                        fontSize: '0.875rem',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      🗑️ Delete
-                    </button>
-                  </div>
+                <div style={{ 
+                  fontWeight: '600', 
+                  color: selectedCandidate?.id === candidate.id ? '#1E40AF' : '#6B7280',
+                  textAlign: 'center'
+                }}>
+                  {pagination.page * pagination.size + index + 1}
+                </div>
+                <div style={{ 
+                  fontWeight: selectedCandidate?.id === candidate.id ? '600' : '500',
+                  color: selectedCandidate?.id === candidate.id ? '#1E40AF' : '#1F2937',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap'
+                }}>
+                  {candidate.fullName}
+                </div>
+                <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {candidate.experienceYears} years
+                </div>
+                <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {candidate.visaStatus}
+                </div>
+                <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {candidate.primarySkill}
+                </div>
+                <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {candidate.state}
+                </div>
+                <div style={{ 
+                  wordBreak: 'break-all',
+                  whiteSpace: 'normal',
+                  lineHeight: '1.4',
+                  fontSize: '0.8rem',
+                  paddingTop: '0.5rem',
+                  paddingBottom: '0.5rem'
+                }}>
+                  {candidate.email || 'N/A'}
                 </div>
               </div>
             ))}
