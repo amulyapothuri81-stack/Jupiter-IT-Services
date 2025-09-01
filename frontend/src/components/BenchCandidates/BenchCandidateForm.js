@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { benchCandidatesAPI, employeesAPI } from '../../services/api';
 import toast from 'react-hot-toast';
+import './BenchCandidateForm.css';
 
 const BenchCandidateForm = () => {
   const navigate = useNavigate();
@@ -9,30 +10,94 @@ const BenchCandidateForm = () => {
   const isEdit = Boolean(id);
 
   const [formData, setFormData] = useState({
-    fullName: '',
-    visaStatus: 'H1B',
-    city: '',
-    state: '',
-    primarySkill: '',
-    experienceYears: '',
+    // Personal Details
+    firstName: '',
+    middleName: '',
+    lastName: '',
     phoneNumber: '',
     email: '',
+    passportNumber: '',
+    countryOfCitizenship: '',
+    linkedinUrl: '',
+    
+    // Address
+    address1: '',
+    address2: '',
+    city: '',
+    state: '',
+    country: '',
+    
+    // Immigration Details
+    visaStatus: 'H1B',
+    otherVisaStatus: '',
+    startDate: '',
+    endDate: '',
+    
+    // Professional Skills
+    primarySkill: '',
+    otherPrimarySkill: '',
+    additionalSkills: '',
+    yearsOfExperience: '',
+    domains: [],
+    
+    // Additional
     targetRate: '',
     assignedConsultantId: '',
-    notes: '',
+    notes: ''
   });
 
   const [employees, setEmployees] = useState([]);
-  const [documents, setDocuments] = useState([]); // Multiple documents
-  const [currentDocuments, setCurrentDocuments] = useState([]);
+  const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadingCandidate, setLoadingCandidate] = useState(isEdit);
+  const [primarySkillSearch, setPrimarySkillSearch] = useState('');
+  const [showPrimarySkillDropdown, setShowPrimarySkillDropdown] = useState(false);
+
+  // Predefined options
+  const visaStatusOptions = [
+    'H1B', 'H4EAD', 'L1', 'L2EAD', 'OPT', 'STEM OPT', 'CPT', 'F1', 'GC', 'CITIZEN', 'OTHER'
+  ];
+
+  const primarySkillOptions = [
+    'Full Stack Developer', 'Java Developer', 'React Developer', 'Angular Developer', 
+    'Node.js Developer', 'Python Developer', '.NET Developer', 'C# Developer',
+    'DevOps Engineer', 'Data Engineer', 'Data Scientist', 'Machine Learning Engineer', 
+    'Cloud Architect', 'AWS Developer', 'Azure Developer', 'UI/UX Designer', 
+    'Frontend Developer', 'Backend Developer', 'Mobile App Developer', 'iOS Developer',
+    'Android Developer', 'QA Engineer', 'Test Automation Engineer', 'Scrum Master',
+    'Product Manager', 'Business Analyst', 'Salesforce Developer', 'SAP Consultant',
+    'Database Administrator', 'Network Engineer', 'Security Engineer', 'Blockchain Developer'
+  ];
+
+  const domainOptions = [
+    'Banking & Financial Services', 'Healthcare', 'Telecommunications', 'E-commerce',
+    'Insurance', 'Manufacturing', 'Retail', 'Education', 'Government', 'Media & Entertainment',
+    'Real Estate', 'Transportation & Logistics', 'Energy & Utilities', 'Travel & Hospitality',
+    'Automotive', 'Pharmaceuticals', 'Technology', 'Consulting', 'Non-profit', 'Other'
+  ];
+
+  const documentTypeOptions = [
+    { value: 'I94', label: 'I-94 Document' },
+    { value: 'PASSPORT', label: 'Passport' },
+    { value: 'RESUME', label: 'Resume/CV' },
+    { value: 'VISA_DOCUMENT', label: 'Visa Document' },
+    { value: 'EAD', label: 'EAD Card' },
+    { value: 'SSN', label: 'SSN Card' },
+    { value: 'DIPLOMA', label: 'Diploma/Degree' },
+    { value: 'TRANSCRIPT', label: 'Transcript' },
+    { value: 'OTHER', label: 'Other' }
+  ];
+
+  const countries = [
+    'United States', 'India', 'Canada', 'United Kingdom', 'Australia', 'Germany',
+    'France', 'China', 'Japan', 'South Korea', 'Brazil', 'Mexico', 'Argentina',
+    'Philippines', 'Pakistan', 'Bangladesh', 'Nepal', 'Sri Lanka', 'Other'
+  ];
 
   useEffect(() => {
     fetchEmployees();
     if (isEdit) {
       fetchCandidate();
-      fetchCurrentDocuments();
     }
   }, [id, isEdit]);
 
@@ -49,18 +114,39 @@ const BenchCandidateForm = () => {
     try {
       const response = await benchCandidatesAPI.getById(id);
       const candidate = response.data;
+      
+      // Map existing fullName to firstName and lastName if needed
+      const nameParts = candidate.fullName ? candidate.fullName.split(' ') : [];
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
+      const middleName = nameParts.length > 2 ? nameParts.slice(1, -1).join(' ') : '';
+
       setFormData({
-        fullName: candidate.fullName || '',
-        visaStatus: candidate.visaStatus || 'H1B',
-        city: candidate.city || '',
-        state: candidate.state || '',
-        primarySkill: candidate.primarySkill || '',
-        experienceYears: candidate.experienceYears || '',
+        firstName,
+        middleName,
+        lastName,
         phoneNumber: candidate.phoneNumber || '',
         email: candidate.email || '',
+        passportNumber: candidate.passportNumber || '',
+        countryOfCitizenship: candidate.countryOfCitizenship || '',
+        linkedinUrl: candidate.linkedinUrl || '',
+        address1: candidate.address1 || '',
+        address2: candidate.address2 || '',
+        city: candidate.city || '',
+        state: candidate.state || '',
+        country: candidate.country || '',
+        visaStatus: candidate.visaStatus || 'H1B',
+        otherVisaStatus: candidate.otherVisaStatus || '',
+        startDate: candidate.startDate || '',
+        endDate: candidate.endDate || '',
+        primarySkill: candidate.primarySkill || '',
+        otherPrimarySkill: candidate.otherPrimarySkill || '',
+        additionalSkills: candidate.additionalSkills || '',
+        yearsOfExperience: candidate.experienceYears || '',
+        domains: candidate.domains || [],
         targetRate: candidate.targetRate || '',
         assignedConsultantId: candidate.assignedConsultantId || '',
-        notes: candidate.notes || '',
+        notes: candidate.notes || ''
       });
     } catch (error) {
       toast.error('Failed to load candidate details');
@@ -70,98 +156,152 @@ const BenchCandidateForm = () => {
     }
   };
 
-  const fetchCurrentDocuments = async () => {
-    try {
-      const response = await benchCandidatesAPI.getDocuments(id);
-      setCurrentDocuments(response.data);
-    } catch (error) {
-      console.error('Failed to load current documents:', error);
-    }
-  };
-
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: value,
-    });
+    const { name, value, type, checked } = e.target;
+    
+    if (name === 'domains') {
+      const currentDomains = [...formData.domains];
+      if (checked) {
+        currentDomains.push(value);
+      } else {
+        const index = currentDomains.indexOf(value);
+        if (index > -1) {
+          currentDomains.splice(index, 1);
+        }
+      }
+      setFormData({ ...formData, domains: currentDomains });
+    } else {
+      setFormData({ ...formData, [name]: value });
+    }
   };
 
-  const handleFileChange = (e) => {
+  const handlePrimarySkillSearch = (e) => {
+    const value = e.target.value;
+    setPrimarySkillSearch(value);
+    setFormData({ ...formData, primarySkill: value });
+    setShowPrimarySkillDropdown(true);
+  };
+
+  const selectPrimarySkill = (skill) => {
+    setFormData({ ...formData, primarySkill: skill });
+    setPrimarySkillSearch(skill);
+    setShowPrimarySkillDropdown(false);
+  };
+
+  const handleFileChange = (e, index) => {
     const files = Array.from(e.target.files);
+    const newDocuments = [...documents];
     
-    if (files.length === 0) return;
-
-    // Validate file types
-    const allowedTypes = [
-      'application/pdf',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'image/jpeg',
-      'image/png',
-      'image/jpg'
-    ];
+    files.forEach(file => {
+      newDocuments.push({
+        file,
+        type: '',
+        id: Date.now() + Math.random()
+      });
+    });
     
-    const invalidFiles = files.filter(file => !allowedTypes.includes(file.type));
-    if (invalidFiles.length > 0) {
-      toast.error('Please select only PDF, Word documents, or image files');
-      e.target.value = '';
-      return;
-    }
-
-    // Validate total file size (max 50MB total)
-    const totalSize = files.reduce((sum, file) => sum + file.size, 0);
-    if (totalSize > 50 * 1024 * 1024) {
-      toast.error('Total file size must be less than 50MB');
-      e.target.value = '';
-      return;
-    }
-
-    setDocuments(files);
-  };
-
-  const removeDocument = (index) => {
-    const newDocuments = documents.filter((_, i) => i !== index);
     setDocuments(newDocuments);
   };
 
-  const deleteCurrentDocument = async (documentId) => {
-    if (window.confirm('Are you sure you want to delete this document?')) {
-      try {
-        await benchCandidatesAPI.deleteDocument(id, documentId);
-        toast.success('Document deleted successfully!');
-        fetchCurrentDocuments();
-      } catch (error) {
-        toast.error('Failed to delete document');
-      }
+  const handleDocumentTypeChange = (docId, type) => {
+    const updatedDocuments = documents.map(doc => 
+      doc.id === docId ? { ...doc, type } : doc
+    );
+    setDocuments(updatedDocuments);
+  };
+
+  const removeDocument = (docId) => {
+    setDocuments(documents.filter(doc => doc.id !== docId));
+  };
+
+  const validateForm = () => {
+    const errors = [];
+    
+    if (!formData.firstName.trim()) errors.push('First Name is required');
+    if (!formData.lastName.trim()) errors.push('Last Name is required');
+    if (!formData.phoneNumber.trim()) errors.push('Phone Number is required');
+    if (!formData.email.trim()) errors.push('Email is required');
+    if (!formData.primarySkill.trim()) errors.push('Primary Skill is required');
+    if (!formData.yearsOfExperience) errors.push('Years of Experience is required');
+    
+    if (formData.visaStatus === 'OTHER' && !formData.otherVisaStatus.trim()) {
+      errors.push('Please specify the visa status');
     }
+    
+    if (formData.primarySkill === 'OTHER' && !formData.otherPrimarySkill.trim()) {
+      errors.push('Please specify the primary skill');
+    }
+    
+    if (errors.length > 0) {
+      errors.forEach(error => toast.error(error));
+      return false;
+    }
+    
+    return true;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!validateForm()) return;
+    
     setLoading(true);
 
     try {
       const submitData = new FormData();
       
+      // Combine names
+      const fullName = `${formData.firstName} ${formData.middleName} ${formData.lastName}`.trim();
+      
+      // Prepare data for submission
+      const candidateData = {
+        fullName,
+        phoneNumber: formData.phoneNumber,
+        email: formData.email,
+        city: formData.city,
+        state: formData.state,
+        primarySkill: formData.primarySkill === 'OTHER' ? formData.otherPrimarySkill : formData.primarySkill,
+        experienceYears: parseInt(formData.yearsOfExperience),
+        visaStatus: formData.visaStatus === 'OTHER' ? formData.otherVisaStatus : formData.visaStatus,
+        targetRate: formData.targetRate ? parseFloat(formData.targetRate) : null,
+        assignedConsultantId: formData.assignedConsultantId || null,
+        notes: formData.notes,
+        // Additional fields
+        firstName: formData.firstName,
+        middleName: formData.middleName,
+        lastName: formData.lastName,
+        passportNumber: formData.passportNumber,
+        countryOfCitizenship: formData.countryOfCitizenship,
+        linkedinUrl: formData.linkedinUrl,
+        address1: formData.address1,
+        address2: formData.address2,
+        country: formData.country,
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        additionalSkills: formData.additionalSkills,
+        domains: formData.domains.join(',')
+      };
+
       // Append form fields
-      Object.keys(formData).forEach(key => {
-        if (formData[key] !== '') {
-          submitData.append(key, formData[key]);
+      Object.keys(candidateData).forEach(key => {
+        if (candidateData[key] !== null && candidateData[key] !== '') {
+          submitData.append(key, candidateData[key]);
         }
       });
 
-      // Append document files
-      documents.forEach((file) => {
-        submitData.append('documents', file);
+      // Append document files with their types
+      documents.forEach((doc, index) => {
+        if (doc.file && doc.type) {
+          submitData.append('documents', doc.file);
+          submitData.append(`documentTypes`, doc.type);
+        }
       });
 
-      let response;
       if (isEdit) {
-        response = await benchCandidatesAPI.update(id, submitData);
+        await benchCandidatesAPI.update(id, submitData);
         toast.success('Bench candidate updated successfully!');
       } else {
-        response = await benchCandidatesAPI.create(submitData);
+        await benchCandidatesAPI.create(submitData);
         toast.success('Bench candidate created successfully!');
       }
 
@@ -192,211 +332,417 @@ const BenchCandidateForm = () => {
     }
   };
 
+  const filteredPrimarySkills = primarySkillOptions.filter(skill =>
+    skill.toLowerCase().includes(primarySkillSearch.toLowerCase())
+  );
+
   if (loadingCandidate) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
+      <div className="loading-container">
+        <div className="loading-spinner"></div>
         <div>Loading candidate details...</div>
       </div>
     );
   }
 
   return (
-    <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '2rem' }}>
-      <div style={{ marginBottom: '2rem' }}>
-        <h1 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1F2937', marginBottom: '0.5rem' }}>
-          {isEdit ? 'Edit Bench Candidate' : 'Add New Bench Candidate'}
-        </h1>
-        <p style={{ color: '#6B7280' }}>
-          {isEdit ? 'Update bench candidate information' : 'Fill in the candidate details for bench profile'}
-        </p>
+    <div className="bench-form-container">
+      {/* Header */}
+      <div className="form-header">
+        <div>
+          <h1>{isEdit ? 'Edit Bench Candidate' : 'Add New Bench Candidate'}</h1>
+          <p>Fill in comprehensive candidate details for bench profile management</p>
+        </div>
+        <button onClick={handleCancel} className="btn-close">
+          ✕ Close
+        </button>
       </div>
 
-      <div style={{ 
-        background: 'white', 
-        borderRadius: '12px', 
-        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-        padding: '2rem'
-      }}>
-        <form onSubmit={handleSubmit}>
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', 
-            gap: '1.5rem', 
-            marginBottom: '2rem' 
-          }}>
-            {/* Full Name */}
+      <form onSubmit={handleSubmit} className="enhanced-form">
+        {/* Personal Details Section */}
+        <div className="form-section">
+          <div className="section-header">
+            <h3>👤 Personal Details</h3>
+          </div>
+          <div className="form-grid">
             <div className="form-group">
-              <label htmlFor="fullName" className="form-label">
-                Candidate Name *
-              </label>
+              <label className="form-label required">First Name</label>
               <input
                 type="text"
-                id="fullName"
-                name="fullName"
-                className="form-input"
-                value={formData.fullName}
+                name="firstName"
+                value={formData.firstName}
                 onChange={handleChange}
+                className="form-input"
                 required
-                placeholder="Enter candidate full name"
+                placeholder="Enter first name"
               />
             </div>
 
-            {/* Visa Status */}
             <div className="form-group">
-              <label htmlFor="visaStatus" className="form-label">
-                Visa Status *
-              </label>
-              <select
-                id="visaStatus"
-                name="visaStatus"
-                className="form-input"
-                value={formData.visaStatus}
-                onChange={handleChange}
-                required
-              >
-                <option value="H1B">H1B</option>
-                <option value="OPT">OPT</option>
-                <option value="GC">Green Card</option>
-                <option value="CITIZEN">US Citizen</option>
-                <option value="F1">F1</option>
-                <option value="L1">L1</option>
-                <option value="OTHER">Other</option>
-              </select>
-            </div>
-
-            {/* City */}
-            <div className="form-group">
-              <label htmlFor="city" className="form-label">
-                City *
-              </label>
+              <label className="form-label">Middle Name</label>
               <input
                 type="text"
-                id="city"
-                name="city"
-                className="form-input"
-                value={formData.city}
+                name="middleName"
+                value={formData.middleName}
                 onChange={handleChange}
-                required
-                placeholder="e.g. New York"
+                className="form-input"
+                placeholder="Enter middle name (optional)"
               />
             </div>
 
-            {/* State */}
             <div className="form-group">
-              <label htmlFor="state" className="form-label">
-                State *
-              </label>
+              <label className="form-label required">Last Name</label>
               <input
                 type="text"
-                id="state"
-                name="state"
-                className="form-input"
-                value={formData.state}
+                name="lastName"
+                value={formData.lastName}
                 onChange={handleChange}
+                className="form-input"
                 required
-                placeholder="e.g. NY"
+                placeholder="Enter last name"
               />
             </div>
 
-            {/* Primary Skill */}
             <div className="form-group">
-              <label htmlFor="primarySkill" className="form-label">
-                Primary Skill *
-              </label>
-              <input
-                type="text"
-                id="primarySkill"
-                name="primarySkill"
-                className="form-input"
-                value={formData.primarySkill}
-                onChange={handleChange}
-                required
-                placeholder="e.g. Java Developer, React, Data Engineer"
-              />
-            </div>
-
-            {/* Experience Years */}
-            <div className="form-group">
-              <label htmlFor="experienceYears" className="form-label">
-                Experience (Years) *
-              </label>
-              <input
-                type="number"
-                id="experienceYears"
-                name="experienceYears"
-                className="form-input"
-                value={formData.experienceYears}
-                onChange={handleChange}
-                required
-                min="0"
-                max="50"
-                placeholder="e.g. 5"
-              />
-            </div>
-
-            {/* Phone Number */}
-            <div className="form-group">
-              <label htmlFor="phoneNumber" className="form-label">
-                Phone Number *
-              </label>
+              <label className="form-label required">Phone Number</label>
               <input
                 type="tel"
-                id="phoneNumber"
                 name="phoneNumber"
-                className="form-input"
                 value={formData.phoneNumber}
                 onChange={handleChange}
+                className="form-input"
                 required
                 placeholder="(555) 123-4567"
               />
             </div>
 
-            {/* Email */}
             <div className="form-group">
-              <label htmlFor="email" className="form-label">
-                Email *
-              </label>
+              <label className="form-label required">Email</label>
               <input
                 type="email"
-                id="email"
                 name="email"
-                className="form-input"
                 value={formData.email}
                 onChange={handleChange}
+                className="form-input"
                 required
                 placeholder="candidate@email.com"
               />
             </div>
 
-            {/* Target Rate */}
             <div className="form-group">
-              <label htmlFor="targetRate" className="form-label">
-                Target Rate ($/hr)
-              </label>
+              <label className="form-label">Passport Number</label>
               <input
-                type="number"
-                id="targetRate"
-                name="targetRate"
-                className="form-input"
-                value={formData.targetRate}
+                type="text"
+                name="passportNumber"
+                value={formData.passportNumber}
                 onChange={handleChange}
-                min="0"
-                step="0.01"
-                placeholder="e.g. 75"
+                className="form-input"
+                placeholder="Enter passport number"
               />
             </div>
 
-            {/* Assigned Consultant */}
             <div className="form-group">
-              <label htmlFor="assignedConsultantId" className="form-label">
-                Assigned Consultant
-              </label>
+              <label className="form-label">Country of Citizenship</label>
               <select
-                id="assignedConsultantId"
-                name="assignedConsultantId"
+                name="countryOfCitizenship"
+                value={formData.countryOfCitizenship}
+                onChange={handleChange}
                 className="form-input"
+              >
+                <option value="">Select Country</option>
+                {countries.map(country => (
+                  <option key={country} value={country}>{country}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">LinkedIn URL</label>
+              <input
+                type="url"
+                name="linkedinUrl"
+                value={formData.linkedinUrl}
+                onChange={handleChange}
+                className="form-input"
+                placeholder="https://linkedin.com/in/username"
+              />
+              {formData.linkedinUrl && (
+                <a 
+                  href={formData.linkedinUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="linkedin-link"
+                >
+                  🔗 View LinkedIn Profile
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Address Section */}
+        <div className="form-section">
+          <div className="section-header">
+            <h3>🏠 Address Information</h3>
+          </div>
+          <div className="form-grid">
+            <div className="form-group">
+              <label className="form-label">Address Line 1</label>
+              <input
+                type="text"
+                name="address1"
+                value={formData.address1}
+                onChange={handleChange}
+                className="form-input"
+                placeholder="Street address"
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Address Line 2</label>
+              <input
+                type="text"
+                name="address2"
+                value={formData.address2}
+                onChange={handleChange}
+                className="form-input"
+                placeholder="Apartment, suite, etc. (optional)"
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">City</label>
+              <input
+                type="text"
+                name="city"
+                value={formData.city}
+                onChange={handleChange}
+                className="form-input"
+                placeholder="Enter city"
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">State</label>
+              <input
+                type="text"
+                name="state"
+                value={formData.state}
+                onChange={handleChange}
+                className="form-input"
+                placeholder="Enter state"
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Country</label>
+              <select
+                name="country"
+                value={formData.country}
+                onChange={handleChange}
+                className="form-input"
+              >
+                <option value="">Select Country</option>
+                {countries.map(country => (
+                  <option key={country} value={country}>{country}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Immigration Details Section */}
+        <div className="form-section">
+          <div className="section-header">
+            <h3>🛂 Immigration Details</h3>
+          </div>
+          <div className="form-grid">
+            <div className="form-group">
+              <label className="form-label required">Visa Status</label>
+              <select
+                name="visaStatus"
+                value={formData.visaStatus}
+                onChange={handleChange}
+                className="form-input"
+                required
+              >
+                {visaStatusOptions.map(status => (
+                  <option key={status} value={status}>{status}</option>
+                ))}
+              </select>
+            </div>
+
+            {formData.visaStatus === 'OTHER' && (
+              <div className="form-group">
+                <label className="form-label required">Specify Visa Status</label>
+                <input
+                  type="text"
+                  name="otherVisaStatus"
+                  value={formData.otherVisaStatus}
+                  onChange={handleChange}
+                  className="form-input"
+                  required
+                  placeholder="Enter visa status"
+                />
+              </div>
+            )}
+
+            <div className="form-group">
+              <label className="form-label">Start Date</label>
+              <input
+                type="date"
+                name="startDate"
+                value={formData.startDate}
+                onChange={handleChange}
+                className="form-input"
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">End Date</label>
+              <input
+                type="date"
+                name="endDate"
+                value={formData.endDate}
+                onChange={handleChange}
+                className="form-input"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Professional Skills Section */}
+        <div className="form-section">
+          <div className="section-header">
+            <h3>💼 Professional Skills</h3>
+          </div>
+          <div className="form-grid">
+            <div className="form-group">
+              <label className="form-label required">Primary Skill</label>
+              <div className="skill-search-container">
+                <input
+                  type="text"
+                  value={primarySkillSearch || formData.primarySkill}
+                  onChange={handlePrimarySkillSearch}
+                  onFocus={() => setShowPrimarySkillDropdown(true)}
+                  className="form-input"
+                  placeholder="Search and select primary skill"
+                  required
+                />
+                {showPrimarySkillDropdown && (
+                  <div className="skill-dropdown">
+                    {filteredPrimarySkills.map(skill => (
+                      <div
+                        key={skill}
+                        className="skill-option"
+                        onClick={() => selectPrimarySkill(skill)}
+                      >
+                        {skill}
+                      </div>
+                    ))}
+                    <div
+                      className="skill-option other-option"
+                      onClick={() => {
+                        selectPrimarySkill('OTHER');
+                        setShowPrimarySkillDropdown(false);
+                      }}
+                    >
+                      ➕ Other (specify below)
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {formData.primarySkill === 'OTHER' && (
+              <div className="form-group">
+                <label className="form-label required">Specify Primary Skill</label>
+                <input
+                  type="text"
+                  name="otherPrimarySkill"
+                  value={formData.otherPrimarySkill}
+                  onChange={handleChange}
+                  className="form-input"
+                  required
+                  placeholder="Enter primary skill"
+                />
+              </div>
+            )}
+
+            <div className="form-group">
+              <label className="form-label">Additional Skills</label>
+              <textarea
+                name="additionalSkills"
+                value={formData.additionalSkills}
+                onChange={handleChange}
+                className="form-input"
+                rows="3"
+                placeholder="List additional skills, separated by commas"
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label required">Years of Experience</label>
+              <input
+                type="number"
+                name="yearsOfExperience"
+                value={formData.yearsOfExperience}
+                onChange={handleChange}
+                className="form-input"
+                required
+                min="0"
+                max="50"
+                placeholder="Enter years of experience"
+              />
+            </div>
+
+            <div className="form-group full-width">
+              <label className="form-label">Domain Experience</label>
+              <div className="checkbox-grid">
+                {domainOptions.map(domain => (
+                  <label key={domain} className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      name="domains"
+                      value={domain}
+                      checked={formData.domains.includes(domain)}
+                      onChange={handleChange}
+                    />
+                    <span>{domain}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Additional Information */}
+        <div className="form-section">
+          <div className="section-header">
+            <h3>💰 Additional Information</h3>
+          </div>
+          <div className="form-grid">
+            <div className="form-group">
+              <label className="form-label">Target Rate ($/hr)</label>
+              <input
+                type="number"
+                name="targetRate"
+                value={formData.targetRate}
+                onChange={handleChange}
+                className="form-input"
+                min="0"
+                step="0.01"
+                placeholder="e.g. 85"
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Assigned Consultant</label>
+              <select
+                name="assignedConsultantId"
                 value={formData.assignedConsultantId}
                 onChange={handleChange}
+                className="form-input"
               >
                 <option value="">Select Consultant (Optional)</option>
                 {employees.map(employee => (
@@ -408,167 +754,103 @@ const BenchCandidateForm = () => {
             </div>
           </div>
 
-          {/* Notes */}
-          <div className="form-group" style={{ marginBottom: '2rem' }}>
-            <label htmlFor="notes" className="form-label">
-              Notes
-            </label>
+          <div className="form-group full-width">
+            <label className="form-label">Notes</label>
             <textarea
-              id="notes"
               name="notes"
-              className="form-input"
               value={formData.notes}
               onChange={handleChange}
-              rows="3"
+              className="form-input"
+              rows="4"
               placeholder="Additional notes about the candidate..."
-              style={{ resize: 'vertical' }}
             />
           </div>
+        </div>
 
-          {/* Current Documents (only for edit mode) */}
-          {isEdit && currentDocuments.length > 0 && (
-            <div className="form-group" style={{ marginBottom: '2rem' }}>
-              <label className="form-label">Current Documents</label>
-              <div style={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', 
-                gap: '1rem',
-                marginTop: '0.5rem'
-              }}>
-                {currentDocuments.map((doc) => (
-                  <div 
-                    key={doc.id}
-                    style={{ 
-                      border: '1px solid #E5E7EB',
-                      borderRadius: '8px',
-                      padding: '1rem',
-                      backgroundColor: '#F9FAFB'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem' }}>
-                      <span style={{ fontSize: '1.5rem', marginRight: '0.5rem' }}>
-                        {getFileIcon(doc.originalFilename)}
-                      </span>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: '600', fontSize: '0.875rem' }}>
-                          {doc.originalFilename}
-                        </div>
-                        <div style={{ fontSize: '0.75rem', color: '#6B7280' }}>
-                          {doc.formattedFileSize} • {new Date(doc.uploadedAt).toLocaleDateString()}
-                        </div>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => deleteCurrentDocument(doc.id)}
-                      style={{
-                        background: '#EF4444',
-                        color: 'white',
-                        border: 'none',
-                        padding: '0.25rem 0.5rem',
-                        borderRadius: '4px',
-                        fontSize: '0.75rem',
-                        cursor: 'pointer',
-                        width: '100%'
-                      }}
-                    >
-                      🗑️ Delete
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Documents Upload */}
-          <div className="form-group" style={{ marginBottom: '2rem' }}>
-            <label htmlFor="documents" className="form-label">
-              {isEdit ? 'Upload Additional Documents' : 'Upload Documents *'}
-            </label>
-            
+        {/* Documents Upload Section */}
+        <div className="form-section">
+          <div className="section-header">
+            <h3>📎 Document Upload</h3>
+          </div>
+          
+          <div className="form-group">
+            <label className="form-label">Upload Documents</label>
             <input
               type="file"
-              id="documents"
-              name="documents"
-              className="form-input"
               onChange={handleFileChange}
+              className="form-input"
               accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
               multiple
-              required={!isEdit && currentDocuments.length === 0}
             />
-            
-            <div style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '0.5rem' }}>
-              Accepted formats: PDF, DOC, DOCX, JPG, PNG (Max total size: 50MB)
+            <div className="file-info">
+              Accepted formats: PDF, DOC, DOCX, JPG, PNG (Max size: 10MB per file)
             </div>
+          </div>
 
-            {/* Selected documents preview */}
-            {documents.length > 0 && (
-              <div style={{ marginTop: '1rem' }}>
-                <h4 style={{ marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '600' }}>
-                  Selected Documents ({documents.length}):
-                </h4>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  {documents.map((file, index) => (
-                    <div 
-                      key={index}
-                      style={{ 
-                        display: 'flex', 
-                        justifyContent: 'space-between', 
-                        alignItems: 'center',
-                        padding: '0.5rem',
-                        backgroundColor: '#F3F4F6',
-                        borderRadius: '4px',
-                        fontSize: '0.875rem'
-                      }}
+          {documents.length > 0 && (
+            <div className="documents-preview">
+              <h4>Uploaded Documents</h4>
+              {documents.map((doc, index) => (
+                <div key={doc.id} className="document-item">
+                  <div className="document-info">
+                    <span className="file-icon">{getFileIcon(doc.file.name)}</span>
+                    <span className="file-name">{doc.file.name}</span>
+                    <span className="file-size">
+                      ({(doc.file.size / 1024 / 1024).toFixed(2)} MB)
+                    </span>
+                  </div>
+                  
+                  <div className="document-type">
+                    <select
+                      value={doc.type}
+                      onChange={(e) => handleDocumentTypeChange(doc.id, e.target.value)}
+                      className="form-input document-type-select"
+                      required
                     >
-                      <span>
-                        {getFileIcon(file.name)} {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => removeDocument(index)}
-                        style={{
-                          background: '#EF4444',
-                          color: 'white',
-                          border: 'none',
-                          padding: '0.25rem 0.5rem',
-                          borderRadius: '4px',
-                          fontSize: '0.75rem',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ))}
+                      <option value="">Select Document Type</option>
+                      {documentTypeOptions.map(option => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <button
+                    type="button"
+                    onClick={() => removeDocument(doc.id)}
+                    className="btn-remove"
+                  >
+                    🗑️
+                  </button>
                 </div>
-              </div>
-            )}
-          </div>
+              ))}
+            </div>
+          )}
+        </div>
 
-          {/* Form Actions */}
-          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-            <button
-              type="button"
-              onClick={handleCancel}
-              className="btn-secondary"
-              disabled={loading}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="btn-primary"
-              disabled={loading}
-            >
-              {loading 
-                ? (isEdit ? 'Updating...' : 'Creating...') 
-                : (isEdit ? 'Update Bench Candidate' : 'Create Bench Candidate')
-              }
-            </button>
-          </div>
-        </form>
-      </div>
+        {/* Form Actions */}
+        <div className="form-actions">
+          <button
+            type="button"
+            onClick={handleCancel}
+            className="btn-cancel"
+            disabled={loading}
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="btn-submit"
+            disabled={loading}
+          >
+            {loading 
+              ? (isEdit ? 'Updating...' : 'Creating...') 
+              : (isEdit ? 'Update Candidate' : 'Create Candidate')
+            }
+          </button>
+        </div>
+      </form>
     </div>
   );
 };

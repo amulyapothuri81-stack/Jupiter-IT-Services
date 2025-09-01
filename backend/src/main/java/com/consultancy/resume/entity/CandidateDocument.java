@@ -44,17 +44,30 @@ public class CandidateDocument {
     @JoinColumn(name = "uploaded_by")
     private User uploadedBy;
 
+    @Column(name = "description")
+    private String description;
+
+    @Column(name = "is_verified")
+    private Boolean isVerified = false;
+
     public enum DocumentType {
-        RESUME("Resume"),
-        CERTIFICATE("Certificate"),
-        ID_PROOF("ID Proof"),
-        DEGREE("Degree"),
+        I94("I-94 Document"),
+        PASSPORT("Passport"),
+        RESUME("Resume/CV"),
+        VISA_DOCUMENT("Visa Document"),
+        EAD("EAD Card"),
+        SSN("SSN Card"),
+        DIPLOMA("Diploma/Degree"),
         TRANSCRIPT("Transcript"),
         OTHER("Other");
 
         private final String displayName;
-        DocumentType(String displayName) { this.displayName = displayName; }
-        public String getDisplayName() { return displayName; }
+        DocumentType(String displayName) { 
+            this.displayName = displayName; 
+        }
+        public String getDisplayName() { 
+            return displayName; 
+        }
     }
 
     // Constructors
@@ -102,6 +115,12 @@ public class CandidateDocument {
     public User getUploadedBy() { return uploadedBy; }
     public void setUploadedBy(User uploadedBy) { this.uploadedBy = uploadedBy; }
 
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
+
+    public Boolean getIsVerified() { return isVerified; }
+    public void setIsVerified(Boolean isVerified) { this.isVerified = isVerified; }
+
     // Helper methods
     public String getFormattedFileSize() {
         if (fileSize == null) return "Unknown";
@@ -137,5 +156,19 @@ public class CandidateDocument {
     public boolean isWord() {
         String ext = getFileExtension();
         return "doc".equalsIgnoreCase(ext) || "docx".equalsIgnoreCase(ext);
+    }
+
+    public String getDocumentIcon() {
+        if (isPdf()) return "📄";
+        if (isWord()) return "📝";
+        if (isImage()) return "🖼️";
+        return "📎";
+    }
+
+    public boolean isImportantDocument() {
+        return documentType == DocumentType.I94 || 
+               documentType == DocumentType.PASSPORT || 
+               documentType == DocumentType.VISA_DOCUMENT ||
+               documentType == DocumentType.EAD;
     }
 }
