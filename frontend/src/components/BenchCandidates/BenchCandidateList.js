@@ -101,6 +101,44 @@ const BenchCandidateList = () => {
     navigate(`/bench-candidates/detail/${selectedCandidate.id}`);
   };
 
+  const getVisaStatusBadge = (visaStatus) => {
+    const colorMap = {
+      'H1B': '#3B82F6',
+      'H4EAD': '#8B5CF6',
+      'L1': '#10B981',
+      'L2EAD': '#F59E0B',
+      'OPT': '#EF4444',
+      'STEM_OPT': '#EC4899',
+      'CPT': '#6366F1',
+      'F1': '#84CC16',
+      'GC': '#059669',
+      'CITIZEN': '#DC2626',
+      'OTHER': '#6B7280'
+    };
+
+    const color = colorMap[visaStatus] || '#6B7280';
+    return (
+      <span style={{
+        backgroundColor: `${color}20`,
+        color: color,
+        padding: '0.25rem 0.5rem',
+        borderRadius: '9999px',
+        fontSize: '0.75rem',
+        fontWeight: '600',
+        border: `1px solid ${color}40`
+      }}>
+        {visaStatus}
+      </span>
+    );
+  };
+
+  const getExperienceColor = (years) => {
+    if (years < 2) return '#EF4444'; // Red for junior
+    if (years < 5) return '#F59E0B'; // Orange for mid-level
+    if (years < 8) return '#10B981'; // Green for senior
+    return '#8B5CF6'; // Purple for expert
+  };
+
   return (
     <div>
       <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -127,7 +165,8 @@ const BenchCandidateList = () => {
               borderRadius: '8px',
               fontSize: '0.875rem',
               cursor: selectedCandidate ? 'pointer' : 'not-allowed',
-              fontWeight: '500'
+              fontWeight: '500',
+              transition: 'all 0.15s ease'
             }}
           >
             📋 More Details
@@ -142,7 +181,8 @@ const BenchCandidateList = () => {
               borderRadius: '8px',
               fontSize: '0.875rem',
               cursor: 'pointer',
-              fontWeight: '500'
+              fontWeight: '500',
+              transition: 'all 0.15s ease'
             }}
           >
             🔍 Filter
@@ -156,7 +196,7 @@ const BenchCandidateList = () => {
       {/* Selected Candidate Info */}
       {selectedCandidate && (
         <div style={{ 
-          background: '#EFF6FF', 
+          background: 'linear-gradient(135deg, #EFF6FF 0%, #F0F9FF 100%)', 
           border: '1px solid #DBEAFE',
           borderRadius: '8px', 
           padding: '1rem',
@@ -223,11 +263,15 @@ const BenchCandidateList = () => {
                 >
                   <option value="">All Visa Status</option>
                   <option value="H1B">H1B</option>
+                  <option value="H4EAD">H4EAD</option>
+                  <option value="L1">L1</option>
+                  <option value="L2EAD">L2EAD</option>
                   <option value="OPT">OPT</option>
+                  <option value="STEM_OPT">STEM OPT</option>
+                  <option value="CPT">CPT</option>
+                  <option value="F1">F1</option>
                   <option value="GC">Green Card</option>
                   <option value="CITIZEN">US Citizen</option>
-                  <option value="F1">F1</option>
-                  <option value="L1">L1</option>
                   <option value="OTHER">Other</option>
                 </select>
               </div>
@@ -304,7 +348,7 @@ const BenchCandidateList = () => {
         </div>
       )}
 
-      {/* Table Style Candidates Display */}
+      {/* Enhanced Table Style Candidates Display */}
       <div style={{ 
         background: 'white', 
         borderRadius: '12px', 
@@ -313,51 +357,61 @@ const BenchCandidateList = () => {
       }}>
         {loading ? (
           <div style={{ padding: '3rem', textAlign: 'center' }}>
+            <div style={{ 
+              width: '40px', 
+              height: '40px', 
+              border: '4px solid #f3f4f6', 
+              borderTop: '4px solid #3b82f6', 
+              borderRadius: '50%', 
+              animation: 'spin 1s linear infinite',
+              margin: '0 auto 1rem auto'
+            }} />
             Loading bench candidates...
           </div>
         ) : candidates.length > 0 ? (
           <div style={{ padding: '0' }}>
-            {/* Table Header */}
+            {/* Enhanced Table Header */}
             <div style={{ 
               display: 'grid', 
-              gridTemplateColumns: '60px minmax(150px, 1fr) 100px 110px minmax(120px, 1fr) 80px minmax(250px, 2fr)',
-              background: '#F9FAFB',
+              gridTemplateColumns: '60px minmax(180px, 1fr) 120px 120px minmax(150px, 1fr) 90px minmax(200px, 2fr)',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
               padding: '1rem',
               fontWeight: '600',
               fontSize: '0.875rem',
-              color: '#374151',
-              borderBottom: '1px solid #E5E7EB',
               position: 'sticky',
               top: 0,
               zIndex: 10,
               gap: '0.5rem'
             }}>
               <div style={{ textAlign: 'center' }}>#</div>
-              <div>Name</div>
-              <div>Experience</div>
-              <div>Visa Status</div>
-              <div>Primary Skill</div>
-              <div>State</div>
-              <div>Email</div>
+              <div>👤 Full Name</div>
+              <div>⏱️ Experience</div>
+              <div>🛂 Visa Status</div>
+              <div>💼 Primary Skill</div>
+              <div>📍 State</div>
+              <div>📧 Email</div>
             </div>
 
-            {/* Table Rows */}
+            {/* Enhanced Table Rows */}
             {candidates.map((candidate, index) => (
               <div 
                 key={candidate.id}
                 onClick={() => handleCandidateSelect(candidate)}
                 style={{ 
                   display: 'grid', 
-                  gridTemplateColumns: '60px minmax(150px, 1fr) 100px 110px minmax(120px, 1fr) 80px minmax(250px, 2fr)',
+                  gridTemplateColumns: '60px minmax(180px, 1fr) 120px 120px minmax(150px, 1fr) 90px minmax(200px, 2fr)',
                   padding: '1rem',
                   fontSize: '0.875rem',
                   borderBottom: '1px solid #F3F4F6',
                   cursor: 'pointer',
-                  backgroundColor: selectedCandidate?.id === candidate.id ? '#EFF6FF' : 'white',
+                  backgroundColor: selectedCandidate?.id === candidate.id ? 
+                    'linear-gradient(135deg, #EFF6FF 0%, #F0F9FF 100%)' : 'white',
                   transition: 'all 0.2s ease',
-                  minHeight: '60px',
+                  minHeight: '70px',
                   alignItems: 'center',
-                  gap: '0.5rem'
+                  gap: '0.5rem',
+                  borderLeft: selectedCandidate?.id === candidate.id ? '4px solid #3B82F6' : '4px solid transparent'
                 }}
                 onMouseEnter={(e) => {
                   if (selectedCandidate?.id !== candidate.id) {
@@ -367,44 +421,90 @@ const BenchCandidateList = () => {
                 onMouseLeave={(e) => {
                   if (selectedCandidate?.id !== candidate.id) {
                     e.currentTarget.style.backgroundColor = 'white';
+                  } else {
+                    e.currentTarget.style.background = 'linear-gradient(135deg, #EFF6FF 0%, #F0F9FF 100%)';
                   }
                 }}
               >
                 <div style={{ 
-                  fontWeight: '600', 
+                  fontWeight: '700', 
                   color: selectedCandidate?.id === candidate.id ? '#1E40AF' : '#6B7280',
-                  textAlign: 'center'
+                  textAlign: 'center',
+                  fontSize: '1rem'
                 }}>
                   {pagination.page * pagination.size + index + 1}
                 </div>
+                
                 <div style={{ 
-                  fontWeight: selectedCandidate?.id === candidate.id ? '600' : '500',
+                  fontWeight: selectedCandidate?.id === candidate.id ? '700' : '600',
                   color: selectedCandidate?.id === candidate.id ? '#1E40AF' : '#1F2937',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap'
+                  whiteSpace: 'nowrap',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
                 }}>
+                  <span style={{ fontSize: '1.2rem' }}>👤</span>
                   {candidate.fullName}
                 </div>
-                <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {candidate.experienceYears} years
+                
+                <div style={{ 
+                  overflow: 'hidden', 
+                  textOverflow: 'ellipsis', 
+                  whiteSpace: 'nowrap',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.25rem'
+                }}>
+                  <span 
+                    style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      backgroundColor: getExperienceColor(candidate.experienceYears),
+                      display: 'inline-block'
+                    }}
+                  />
+                  <span style={{ fontWeight: '600' }}>{candidate.experienceYears}</span> years
                 </div>
-                <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {candidate.visaStatus}
+                
+                <div style={{ 
+                  overflow: 'hidden', 
+                  textOverflow: 'ellipsis', 
+                  whiteSpace: 'nowrap',
+                  display: 'flex',
+                  alignItems: 'center'
+                }}>
+                  {getVisaStatusBadge(candidate.visaStatus)}
                 </div>
-                <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                
+                <div style={{ 
+                  overflow: 'hidden', 
+                  textOverflow: 'ellipsis', 
+                  whiteSpace: 'nowrap',
+                  fontWeight: '500'
+                }}>
                   {candidate.primarySkill}
                 </div>
-                <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                
+                <div style={{ 
+                  overflow: 'hidden', 
+                  textOverflow: 'ellipsis', 
+                  whiteSpace: 'nowrap',
+                  fontWeight: '500'
+                }}>
                   {candidate.state}
                 </div>
+                
                 <div style={{ 
                   wordBreak: 'break-all',
                   whiteSpace: 'normal',
                   lineHeight: '1.4',
                   fontSize: '0.8rem',
                   paddingTop: '0.5rem',
-                  paddingBottom: '0.5rem'
+                  paddingBottom: '0.5rem',
+                  color: '#4B5563'
                 }}>
                   {candidate.email || 'N/A'}
                 </div>
@@ -413,54 +513,109 @@ const BenchCandidateList = () => {
           </div>
         ) : (
           <div style={{ padding: '3rem', textAlign: 'center', color: '#6B7280' }}>
-            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>👥</div>
-            <p style={{ fontSize: '1.1rem', marginBottom: '0.5rem' }}>No bench candidates found</p>
+            <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>👥</div>
+            <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>No bench candidates found</h3>
+            <p style={{ fontSize: '0.875rem', marginBottom: '1.5rem' }}>
+              Start building your candidate database by adding bench profiles
+            </p>
             <Link 
               to="/bench-candidates/new" 
               style={{ 
-                color: '#3B82F6', 
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white',
                 textDecoration: 'none',
-                fontWeight: '500'
+                padding: '0.75rem 1.5rem',
+                borderRadius: '8px',
+                fontWeight: '600',
+                display: 'inline-block',
+                transition: 'all 0.15s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.transform = 'translateY(-1px)';
+                e.target.style.boxShadow = '0 10px 25px -5px rgba(102, 126, 234, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = 'none';
               }}
             >
-              Add your first bench candidate
+              ➕ Add Your First Candidate
             </Link>
           </div>
         )}
 
-        {/* Pagination */}
+        {/* Enhanced Pagination */}
         {pagination.totalPages > 1 && (
           <div style={{ 
             padding: '1rem 2rem', 
-            borderTop: '1px solid #E5E7EB',
+            borderTop: '2px solid #E5E7EB',
+            background: 'linear-gradient(135deg, #F9FAFB 0%, #F3F4F6 100%)',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center'
           }}>
-            <div style={{ color: '#6B7280', fontSize: '0.875rem' }}>
-              Showing {pagination.page * pagination.size + 1} to {Math.min((pagination.page + 1) * pagination.size, pagination.totalElements)} of {pagination.totalElements} results
+            <div style={{ color: '#6B7280', fontSize: '0.875rem', fontWeight: '500' }}>
+              Showing <strong>{pagination.page * pagination.size + 1}</strong> to{' '}
+              <strong>{Math.min((pagination.page + 1) * pagination.size, pagination.totalElements)}</strong> of{' '}
+              <strong>{pagination.totalElements}</strong> candidates
             </div>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button
                 onClick={() => fetchCandidates(pagination.page - 1)}
                 disabled={pagination.page === 0}
-                className="btn-secondary"
-                style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}
+                style={{
+                  background: pagination.page === 0 ? '#E5E7EB' : '#3B82F6',
+                  color: pagination.page === 0 ? '#9CA3AF' : 'white',
+                  border: 'none',
+                  padding: '0.5rem 1rem',
+                  borderRadius: '6px',
+                  fontSize: '0.875rem',
+                  fontWeight: '500',
+                  cursor: pagination.page === 0 ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
               >
-                Previous
+                ← Previous
               </button>
+              <span style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                padding: '0 1rem', 
+                fontSize: '0.875rem',
+                fontWeight: '600',
+                color: '#4B5563'
+              }}>
+                {pagination.page + 1} of {pagination.totalPages}
+              </span>
               <button
                 onClick={() => fetchCandidates(pagination.page + 1)}
                 disabled={pagination.page >= pagination.totalPages - 1}
-                className="btn-secondary"
-                style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}
+                style={{
+                  background: pagination.page >= pagination.totalPages - 1 ? '#E5E7EB' : '#3B82F6',
+                  color: pagination.page >= pagination.totalPages - 1 ? '#9CA3AF' : 'white',
+                  border: 'none',
+                  padding: '0.5rem 1rem',
+                  borderRadius: '6px',
+                  fontSize: '0.875rem',
+                  fontWeight: '500',
+                  cursor: pagination.page >= pagination.totalPages - 1 ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
               >
-                Next
+                Next →
               </button>
             </div>
           </div>
         )}
       </div>
+      
+      {/* Add CSS for spin animation */}
+      <style jsx>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 };
