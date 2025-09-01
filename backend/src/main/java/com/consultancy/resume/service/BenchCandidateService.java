@@ -17,7 +17,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.util.StringUtils;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -40,17 +44,85 @@ public class BenchCandidateService {
     @Autowired
     private FileStorageService fileStorageService;
 
+    // Common date formatters for parsing different date formats
+    private static final DateTimeFormatter[] DATE_FORMATTERS = {
+        DateTimeFormatter.ISO_LOCAL_DATE,           // yyyy-MM-dd
+        DateTimeFormatter.ofPattern("MM/dd/yyyy"),  // MM/dd/yyyy
+        DateTimeFormatter.ofPattern("dd/MM/yyyy"),  // dd/MM/yyyy
+        DateTimeFormatter.ofPattern("yyyy/MM/dd"),  // yyyy/MM/dd
+        DateTimeFormatter.ofPattern("MM-dd-yyyy"),  // MM-dd-yyyy
+        DateTimeFormatter.ofPattern("dd-MM-yyyy")   // dd-MM-yyyy
+    };
+
+    /**
+     * Helper method to parse date with multiple formatters
+     */
+    private LocalDate parseDate(String dateStr) {
+        if (dateStr == null) {
+            return null;
+        }
+        
+        String trimmedDate = dateStr.trim();
+        if (trimmedDate.isEmpty()) {
+            return null;
+        }
+        
+        for (DateTimeFormatter formatter : DATE_FORMATTERS) {
+            try {
+                return LocalDate.parse(trimmedDate, formatter);
+            } catch (DateTimeParseException e) {
+                // Try next formatter
+                continue;
+            }
+        }
+        
+        // If all formatters fail, log the error and return null
+        System.err.println("Unable to parse date: " + trimmedDate + ". Expected formats: yyyy-MM-dd, MM/dd/yyyy, dd/MM/yyyy, etc.");
+        return null;
+    }
+
     public BenchCandidateResponse createBenchCandidate(BenchCandidateRequest request, MultipartFile[] documents, 
                                                       UserPrincipal currentUser) {
         BenchCandidate candidate = new BenchCandidate();
+        
+        // Personal Details
+        candidate.setFirstName(request.getFirstName());
+        candidate.setMiddleName(request.getMiddleName());
+        candidate.setLastName(request.getLastName());
         candidate.setFullName(request.getFullName());
-        candidate.setVisaStatus(request.getVisaStatus());
-        candidate.setCity(request.getCity());
-        candidate.setState(request.getState());
-        candidate.setPrimarySkill(request.getPrimarySkill());
-        candidate.setExperienceYears(request.getExperienceYears());
         candidate.setPhoneNumber(request.getPhoneNumber());
         candidate.setEmail(request.getEmail());
+        candidate.setPassportNumber(request.getPassportNumber());
+        candidate.setCountryOfCitizenship(request.getCountryOfCitizenship());
+        candidate.setLinkedinUrl(request.getLinkedinUrl());
+        
+        // Address Information
+        candidate.setAddress1(request.getAddress1());
+        candidate.setAddress2(request.getAddress2());
+        candidate.setCity(request.getCity());
+        candidate.setState(request.getState());
+        candidate.setCountry(request.getCountry());
+        
+        // Immigration Details
+        candidate.setVisaStatus(request.getVisaStatus());
+        candidate.setOtherVisaStatus(request.getOtherVisaStatus());
+        
+        // Set dates directly if they're already LocalDate, or parse if they're strings
+        candidate.setStartDate(request.getStartDate());
+        candidate.setEndDate(request.getEndDate());
+        
+        // Professional Skills
+        candidate.setPrimarySkill(request.getPrimarySkill());
+        candidate.setOtherPrimarySkill(request.getOtherPrimarySkill());
+        candidate.setAdditionalSkills(request.getAdditionalSkills());
+        candidate.setExperienceYears(request.getExperienceYears());
+        
+        // Handle domains - convert List to comma-separated string
+        if (request.getDomains() != null && !request.getDomains().isEmpty()) {
+            candidate.setDomains(String.join(",", request.getDomains()));
+        }
+        
+        // Additional Information
         candidate.setTargetRate(request.getTargetRate());
         candidate.setNotes(request.getNotes());
 
@@ -69,32 +141,30 @@ public class BenchCandidateService {
         // Save candidate first
         BenchCandidate savedCandidate = benchCandidateRepository.save(candidate);
 
-        // Handle document uploads
-        if (documents != null && documents.length > 0) {
-            for (MultipartFile document : documents) {
-                if (!document.isEmpty()) {
+        // Handle document uploads with their types
+        if (documents != null && documents.length > 0 && request.getDocumentTypes() != null) {
+            for (int i = 0; i < documents.length && i < request.getDocumentTypes().size(); i++) {
+                MultipartFile document = documents[i];
+                String documentType = request.getDocumentTypes().get(i);
+                
+                if (!document.isEmpty() && documentType != null && !documentType.trim().isEmpty()) {
                     try {
                         String filename = fileStorageService.storeFile(document);
                         
                         CandidateDocument candidateDoc = new CandidateDocument(
                             filename,
                             document.getOriginalFilename(),
-                            filename, // filePath same as filename for now
+                            filename,
                             document.getSize(),
                             document.getContentType(),
                             savedCandidate
                         );
                         candidateDoc.setUploadedBy(user);
                         
-                        // Determine document type based on filename
-                        String originalName = document.getOriginalFilename().toLowerCase();
-                        if (originalName.contains("resume") || originalName.contains("cv")) {
-                            candidateDoc.setDocumentType(CandidateDocument.DocumentType.RESUME);
-                        } else if (originalName.contains("certificate")) {
-                            candidateDoc.setDocumentType(CandidateDocument.DocumentType.CERTIFICATE);
-                        } else if (originalName.contains("degree")) {
-                            candidateDoc.setDocumentType(CandidateDocument.DocumentType.DEGREE);
-                        } else {
+                        // Set document type from the request
+                        try {
+                            candidateDoc.setDocumentType(CandidateDocument.DocumentType.valueOf(documentType));
+                        } catch (IllegalArgumentException e) {
                             candidateDoc.setDocumentType(CandidateDocument.DocumentType.OTHER);
                         }
                         
@@ -140,14 +210,44 @@ public class BenchCandidateService {
         BenchCandidate candidate = benchCandidateRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Bench candidate not found with id: " + id));
 
+        // Update personal details
+        candidate.setFirstName(request.getFirstName());
+        candidate.setMiddleName(request.getMiddleName());
+        candidate.setLastName(request.getLastName());
         candidate.setFullName(request.getFullName());
-        candidate.setVisaStatus(request.getVisaStatus());
-        candidate.setCity(request.getCity());
-        candidate.setState(request.getState());
-        candidate.setPrimarySkill(request.getPrimarySkill());
-        candidate.setExperienceYears(request.getExperienceYears());
         candidate.setPhoneNumber(request.getPhoneNumber());
         candidate.setEmail(request.getEmail());
+        candidate.setPassportNumber(request.getPassportNumber());
+        candidate.setCountryOfCitizenship(request.getCountryOfCitizenship());
+        candidate.setLinkedinUrl(request.getLinkedinUrl());
+        
+        // Update address
+        candidate.setAddress1(request.getAddress1());
+        candidate.setAddress2(request.getAddress2());
+        candidate.setCity(request.getCity());
+        candidate.setState(request.getState());
+        candidate.setCountry(request.getCountry());
+        
+        // Update immigration details
+        candidate.setVisaStatus(request.getVisaStatus());
+        candidate.setOtherVisaStatus(request.getOtherVisaStatus());
+        
+        // Update dates directly
+        candidate.setStartDate(request.getStartDate());
+        candidate.setEndDate(request.getEndDate());
+        
+        // Update skills
+        candidate.setPrimarySkill(request.getPrimarySkill());
+        candidate.setOtherPrimarySkill(request.getOtherPrimarySkill());
+        candidate.setAdditionalSkills(request.getAdditionalSkills());
+        candidate.setExperienceYears(request.getExperienceYears());
+        
+        // Update domains
+        if (request.getDomains() != null && !request.getDomains().isEmpty()) {
+            candidate.setDomains(String.join(",", request.getDomains()));
+        }
+        
+        // Update additional info
         candidate.setTargetRate(request.getTargetRate());
         candidate.setNotes(request.getNotes());
 
@@ -161,11 +261,14 @@ public class BenchCandidateService {
         }
 
         // Handle new document uploads
-        if (documents != null && documents.length > 0) {
+        if (documents != null && documents.length > 0 && request.getDocumentTypes() != null) {
             User currentUser = candidate.getCreatedBy(); // Use existing user for simplicity
             
-            for (MultipartFile document : documents) {
-                if (!document.isEmpty()) {
+            for (int i = 0; i < documents.length && i < request.getDocumentTypes().size(); i++) {
+                MultipartFile document = documents[i];
+                String documentType = request.getDocumentTypes().get(i);
+                
+                if (!document.isEmpty() && documentType != null && !documentType.trim().isEmpty()) {
                     try {
                         String filename = fileStorageService.storeFile(document);
                         
@@ -178,6 +281,12 @@ public class BenchCandidateService {
                             candidate
                         );
                         candidateDoc.setUploadedBy(currentUser);
+                        
+                        try {
+                            candidateDoc.setDocumentType(CandidateDocument.DocumentType.valueOf(documentType));
+                        } catch (IllegalArgumentException e) {
+                            candidateDoc.setDocumentType(CandidateDocument.DocumentType.OTHER);
+                        }
                         
                         candidateDocumentRepository.save(candidateDoc);
                         
@@ -285,14 +394,22 @@ public class BenchCandidateService {
             );
             document.setUploadedBy(user);
             
-            // Auto-determine document type
+            // Auto-determine document type based on filename
             String originalName = file.getOriginalFilename().toLowerCase();
             if (originalName.contains("resume") || originalName.contains("cv")) {
                 document.setDocumentType(CandidateDocument.DocumentType.RESUME);
-            } else if (originalName.contains("certificate")) {
-                document.setDocumentType(CandidateDocument.DocumentType.CERTIFICATE);
-            } else if (originalName.contains("degree")) {
-                document.setDocumentType(CandidateDocument.DocumentType.DEGREE);
+            } else if (originalName.contains("i94") || originalName.contains("i-94")) {
+                document.setDocumentType(CandidateDocument.DocumentType.I94);
+            } else if (originalName.contains("passport")) {
+                document.setDocumentType(CandidateDocument.DocumentType.PASSPORT);
+            } else if (originalName.contains("visa")) {
+                document.setDocumentType(CandidateDocument.DocumentType.VISA_DOCUMENT);
+            } else if (originalName.contains("ead")) {
+                document.setDocumentType(CandidateDocument.DocumentType.EAD);
+            } else if (originalName.contains("ssn")) {
+                document.setDocumentType(CandidateDocument.DocumentType.SSN);
+            } else if (originalName.contains("diploma") || originalName.contains("degree")) {
+                document.setDocumentType(CandidateDocument.DocumentType.DIPLOMA);
             } else if (originalName.contains("transcript")) {
                 document.setDocumentType(CandidateDocument.DocumentType.TRANSCRIPT);
             } else {
