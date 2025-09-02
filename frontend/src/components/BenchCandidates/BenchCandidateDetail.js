@@ -160,6 +160,29 @@ const BenchCandidateDetail = () => {
     }
   };
 
+  // Enhanced LinkedIn URL handler
+  const handleLinkedInClick = (linkedinUrl) => {
+    if (!linkedinUrl) {
+      toast.error('No LinkedIn URL available');
+      return;
+    }
+
+    // Ensure the URL has proper protocol
+    let formattedUrl = linkedinUrl;
+    if (!linkedinUrl.startsWith('http://') && !linkedinUrl.startsWith('https://')) {
+      formattedUrl = 'https://' + linkedinUrl;
+    }
+
+    // Open in new tab/window
+    try {
+      window.open(formattedUrl, '_blank', 'noopener,noreferrer');
+      toast.success('Opening LinkedIn profile in new tab');
+    } catch (error) {
+      toast.error('Failed to open LinkedIn profile');
+      console.error('LinkedIn URL error:', error);
+    }
+  };
+
   const getActivityTypeColor = (type) => {
     const colors = {
       'APPLIED': '#3B82F6',
@@ -195,14 +218,34 @@ const BenchCandidateDetail = () => {
       case 'jpg':
       case 'jpeg':
       case 'png': return '🖼️';
+      case 'i94': return '🛂';
+      case 'passport': return '📔';
+      case 'visa': return '🛃';
+      case 'ead': return '💳';
       default: return '📎';
     }
+  };
+
+  const getDocumentTypeColor = (type) => {
+    const colors = {
+      'I94': '#3B82F6',
+      'PASSPORT': '#10B981',
+      'RESUME': '#F59E0B',
+      'VISA_DOCUMENT': '#8B5CF6',
+      'EAD': '#EF4444',
+      'SSN': '#06B6D4',
+      'DIPLOMA': '#84CC16',
+      'TRANSCRIPT': '#F97316',
+      'OTHER': '#6B7280'
+    };
+    return colors[type] || '#6B7280';
   };
 
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
-        <div>Loading candidate details...</div>
+        <div className="loading-spinner"></div>
+        <div style={{ marginLeft: '1rem' }}>Loading candidate details...</div>
       </div>
     );
   }
@@ -222,7 +265,7 @@ const BenchCandidateDetail = () => {
       <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1F2937', marginBottom: '0.5rem' }}>
-            {candidate.fullName}
+            {candidate.firstName} {candidate.middleName} {candidate.lastName}
           </h1>
           <p style={{ color: '#6B7280' }}>
             Bench Profile Details & Management
@@ -238,7 +281,7 @@ const BenchCandidateDetail = () => {
         </div>
       </div>
 
-      {/* Candidate Details Card */}
+      {/* Enhanced Candidate Details Card */}
       <div style={{ 
         background: 'white', 
         borderRadius: '12px', 
@@ -250,17 +293,124 @@ const BenchCandidateDetail = () => {
           👤 Profile Information
         </h3>
         
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem' }}>
-          <div><strong>Visa Status:</strong> {candidate.visaStatus}</div>
-          <div><strong>Location:</strong> {candidate.city}, {candidate.state}</div>
-          <div><strong>Primary Skill:</strong> {candidate.primarySkill}</div>
-          <div><strong>Experience:</strong> {candidate.experienceYears} years</div>
-          <div><strong>Phone:</strong> {candidate.phoneNumber}</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+          <div><strong>Full Name:</strong> {candidate.firstName} {candidate.middleName} {candidate.lastName}</div>
+          <div><strong>Phone Number:</strong> {candidate.phoneNumber}</div>
           <div><strong>Email:</strong> {candidate.email}</div>
-          {candidate.targetRate && <div><strong>Target Rate:</strong> ${candidate.targetRate}/hr</div>}
-          {candidate.assignedConsultantName && <div><strong>Assigned Consultant:</strong> {candidate.assignedConsultantName}</div>}
+          <div><strong>Passport Number:</strong> {candidate.passportNumber || 'N/A'}</div>
+          <div><strong>Citizenship:</strong> {candidate.countryOfCitizenship || 'N/A'}</div>
+          <div><strong>Visa Status:</strong> {candidate.visaStatus}</div>
         </div>
 
+        {/* Address Section */}
+        {(candidate.address1 || candidate.city || candidate.state) && (
+          <div style={{ marginBottom: '1.5rem' }}>
+            <h4 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.5rem', color: '#374151' }}>
+              🏠 Address Information
+            </h4>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '0.75rem' }}>
+              {candidate.address1 && <div><strong>Address:</strong> {candidate.address1}</div>}
+              {candidate.address2 && <div><strong>Address 2:</strong> {candidate.address2}</div>}
+              {candidate.city && <div><strong>City:</strong> {candidate.city}</div>}
+              {candidate.state && <div><strong>State:</strong> {candidate.state}</div>}
+              {candidate.country && <div><strong>Country:</strong> {candidate.country}</div>}
+            </div>
+          </div>
+        )}
+
+        {/* Immigration Details Section */}
+        {(candidate.startDate || candidate.endDate) && (
+          <div style={{ marginBottom: '1.5rem' }}>
+            <h4 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.5rem', color: '#374151' }}>
+              🛂 Immigration Details
+            </h4>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
+              <div><strong>Visa Status:</strong> {candidate.visaStatus}</div>
+              {candidate.startDate && <div><strong>Start Date:</strong> {new Date(candidate.startDate).toLocaleDateString()}</div>}
+              {candidate.endDate && <div><strong>End Date:</strong> {new Date(candidate.endDate).toLocaleDateString()}</div>}
+            </div>
+          </div>
+        )}
+
+        {/* Professional Skills Section */}
+        <div style={{ marginBottom: '1.5rem' }}>
+          <h4 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.5rem', color: '#374151' }}>
+            💼 Professional Skills
+          </h4>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '0.75rem' }}>
+            <div><strong>Primary Skill:</strong> {candidate.primarySkill}</div>
+            <div><strong>Experience:</strong> {candidate.experienceYears} years</div>
+            {candidate.additionalSkills && <div><strong>Additional Skills:</strong> {candidate.additionalSkills}</div>}
+            {candidate.domains && candidate.domains.length > 0 && (
+              <div style={{ gridColumn: '1 / -1' }}>
+                <strong>Domain Experience:</strong>
+                <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  {candidate.domains.split(',').map((domain, index) => (
+                    <span 
+                      key={index}
+                      style={{
+                        backgroundColor: '#F3F4F6',
+                        color: '#374151',
+                        padding: '0.25rem 0.75rem',
+                        borderRadius: '9999px',
+                        fontSize: '0.875rem',
+                        fontWeight: '500'
+                      }}
+                    >
+                      {domain.trim()}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {candidate.targetRate && <div><strong>Target Rate:</strong> ${candidate.targetRate}/hr</div>}
+          </div>
+        </div>
+
+        {/* LinkedIn Section */}
+        {candidate.linkedinUrl && (
+          <div style={{ marginBottom: '1.5rem' }}>
+            <h4 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.5rem', color: '#374151' }}>
+              🔗 Professional Links
+            </h4>
+            <button
+              onClick={() => handleLinkedInClick(candidate.linkedinUrl)}
+              style={{
+                background: '#0A66C2',
+                color: 'white',
+                border: 'none',
+                padding: '0.75rem 1.5rem',
+                borderRadius: '8px',
+                fontSize: '0.875rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                transition: 'all 0.15s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.transform = 'translateY(-1px)';
+                e.target.style.boxShadow = '0 4px 12px rgba(10, 102, 194, 0.3)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = 'none';
+              }}
+            >
+              🔗 View LinkedIn Profile
+            </button>
+          </div>
+        )}
+
+        {/* Assigned Consultant */}
+        {candidate.assignedConsultantName && (
+          <div style={{ marginBottom: '1rem' }}>
+            <strong>Assigned Consultant:</strong> {candidate.assignedConsultantName}
+          </div>
+        )}
+
+        {/* Notes */}
         {candidate.notes && (
           <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: '#F3F4F6', borderRadius: '8px' }}>
             <strong>Notes:</strong> {candidate.notes}
@@ -328,7 +478,7 @@ const BenchCandidateDetail = () => {
 
         {/* Tab Content */}
         <div style={{ padding: '2rem' }}>
-          {/* Documents Tab */}
+          {/* Enhanced Documents Tab */}
           {activeTab === 'documents' && (
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
@@ -388,12 +538,13 @@ const BenchCandidateDetail = () => {
                           {doc.documentType && doc.documentType !== 'OTHER' && (
                             <span style={{
                               fontSize: '0.75rem',
-                              backgroundColor: '#DBEAFE',
-                              color: '#1E40AF',
+                              backgroundColor: `${getDocumentTypeColor(doc.documentType)}20`,
+                              color: getDocumentTypeColor(doc.documentType),
                               padding: '0.125rem 0.5rem',
                               borderRadius: '9999px',
                               marginTop: '0.25rem',
-                              display: 'inline-block'
+                              display: 'inline-block',
+                              fontWeight: '600'
                             }}>
                               {doc.documentType.replace('_', ' ')}
                             </span>
@@ -462,7 +613,7 @@ const BenchCandidateDetail = () => {
                   <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>📄</div>
                   <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>No documents uploaded yet</h3>
                   <p style={{ fontSize: '0.875rem', marginBottom: '1.5rem' }}>
-                    Upload resumes, certificates, and other important documents
+                    Upload I-94, passport, resume, visa documents, and other important files
                   </p>
                   <label
                     htmlFor="uploadDocs"
@@ -500,7 +651,7 @@ const BenchCandidateDetail = () => {
               {showActivityForm && (
                 <div style={{ padding: '2rem', borderBottom: '1px solid #E5E7EB', backgroundColor: '#F9FAFB', borderRadius: '8px', marginBottom: '2rem' }}>
                   <h4 style={{ marginBottom: '1rem', fontSize: '1.125rem', fontWeight: '600' }}>
-                    Record Today's Activity for {candidate.fullName}
+                    Record Today's Activity for {candidate.firstName} {candidate.lastName}
                   </h4>
                   <form onSubmit={handleAddActivity}>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
