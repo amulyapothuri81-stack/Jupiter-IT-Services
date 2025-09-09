@@ -101,10 +101,8 @@ const BenchCandidateDetail = () => {
 
     setUploadingDocuments(true);
     try {
-      if (files.length === 1) {
-        await benchCandidatesAPI.uploadDocument(id, files[0]);
-      } else {
-        await benchCandidatesAPI.uploadMultipleDocuments(id, files);
+      for (const file of files) {
+        await benchCandidatesAPI.uploadDocument(id, file);
       }
       toast.success(`${files.length} document(s) uploaded successfully!`);
       fetchDocuments();
@@ -119,7 +117,14 @@ const BenchCandidateDetail = () => {
   const handleDownloadDocument = async (documentId, filename) => {
     try {
       const response = await benchCandidatesAPI.downloadDocument(id, documentId);
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      
+      // Create blob from response data
+      const blob = new Blob([response.data], { 
+        type: response.headers['content-type'] || 'application/octet-stream' 
+      });
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', filename);
@@ -127,7 +132,10 @@ const BenchCandidateDetail = () => {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
+      
+      toast.success('Document downloaded successfully!');
     } catch (error) {
+      console.error('Download error:', error);
       toast.error('Failed to download document');
     }
   };
@@ -135,15 +143,19 @@ const BenchCandidateDetail = () => {
   const handlePreviewDocument = async (documentId, filename) => {
     try {
       const response = await benchCandidatesAPI.downloadDocument(id, documentId);
-      const blob = new Blob([response.data]);
+      const blob = new Blob([response.data], { 
+        type: response.headers['content-type'] || 'application/octet-stream' 
+      });
       const url = window.URL.createObjectURL(blob);
       
       setDocumentPreview({
         url,
         filename,
-        type: filename.split('.').pop().toLowerCase()
+        type: filename.split('.').pop().toLowerCase(),
+        contentType: response.headers['content-type']
       });
     } catch (error) {
+      console.error('Preview error:', error);
       toast.error('Failed to preview document');
     }
   };
@@ -167,10 +179,21 @@ const BenchCandidateDetail = () => {
       return;
     }
 
-    // Ensure the URL has proper protocol
-    let formattedUrl = linkedinUrl;
-    if (!linkedinUrl.startsWith('http://') && !linkedinUrl.startsWith('https://')) {
-      formattedUrl = 'https://' + linkedinUrl;
+    // Clean and format the URL
+    let formattedUrl = linkedinUrl.trim();
+    
+    // Add https:// if no protocol is present
+    if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
+      // Check if it starts with www. or linkedin.com
+      if (formattedUrl.startsWith('www.') || formattedUrl.startsWith('linkedin.com')) {
+        formattedUrl = 'https://' + formattedUrl;
+      } else if (formattedUrl.startsWith('in/')) {
+        // Handle cases like "in/username"
+        formattedUrl = 'https://www.linkedin.com/' + formattedUrl;
+      } else {
+        // Assume it's a partial LinkedIn URL
+        formattedUrl = 'https://www.linkedin.com/in/' + formattedUrl;
+      }
     }
 
     // Open in new tab/window
@@ -217,11 +240,13 @@ const BenchCandidateDetail = () => {
       case 'docx': return '📝';
       case 'jpg':
       case 'jpeg':
-      case 'png': return '🖼️';
-      case 'i94': return '🛂';
-      case 'passport': return '📔';
-      case 'visa': return '🛃';
-      case 'ead': return '💳';
+      case 'png':
+      case 'gif': return '🖼️';
+      case 'xls':
+      case 'xlsx': return '📊';
+      case 'ppt':
+      case 'pptx': return '📽️';
+      case 'txt': return '📄';
       default: return '📎';
     }
   };
@@ -239,6 +264,21 @@ const BenchCandidateDetail = () => {
       'OTHER': '#6B7280'
     };
     return colors[type] || '#6B7280';
+  };
+
+  const getDocumentTypeDisplayName = (type) => {
+    const displayNames = {
+      'I94': 'I-94 Document',
+      'PASSPORT': 'Passport',
+      'RESUME': 'Resume',
+      'VISA_DOCUMENT': 'Visa Document',
+      'EAD': 'EAD Card',
+      'SSN': 'SSN Card',
+      'DIPLOMA': 'Diploma',
+      'TRANSCRIPT': 'Transcript',
+      'OTHER': 'Other'
+    };
+    return displayNames[type] || type;
   };
 
   if (loading) {
@@ -367,39 +407,44 @@ const BenchCandidateDetail = () => {
           </div>
         </div>
 
-        {/* LinkedIn Section */}
+        {/* LinkedIn Section - Enhanced */}
         {candidate.linkedinUrl && (
           <div style={{ marginBottom: '1.5rem' }}>
             <h4 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.5rem', color: '#374151' }}>
               🔗 Professional Links
             </h4>
-            <button
-              onClick={() => handleLinkedInClick(candidate.linkedinUrl)}
-              style={{
-                background: '#0A66C2',
-                color: 'white',
-                border: 'none',
-                padding: '0.75rem 1.5rem',
-                borderRadius: '8px',
-                fontSize: '0.875rem',
-                fontWeight: '600',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                transition: 'all 0.15s ease'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.transform = 'translateY(-1px)';
-                e.target.style.boxShadow = '0 4px 12px rgba(10, 102, 194, 0.3)';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.transform = 'translateY(0)';
-                e.target.style.boxShadow = 'none';
-              }}
-            >
-              🔗 View LinkedIn Profile
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <button
+                onClick={() => handleLinkedInClick(candidate.linkedinUrl)}
+                style={{
+                  background: '#0A66C2',
+                  color: 'white',
+                  border: 'none',
+                  padding: '0.75rem 1.5rem',
+                  borderRadius: '8px',
+                  fontSize: '0.875rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  transition: 'all 0.15s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.transform = 'translateY(-1px)';
+                  e.target.style.boxShadow = '0 4px 12px rgba(10, 102, 194, 0.3)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.transform = 'translateY(0)';
+                  e.target.style.boxShadow = 'none';
+                }}
+              >
+                🔗 View LinkedIn Profile
+              </button>
+              <span style={{ fontSize: '0.875rem', color: '#6B7280' }}>
+                {candidate.linkedinUrl}
+              </span>
+            </div>
           </div>
         )}
 
@@ -490,7 +535,7 @@ const BenchCandidateDetail = () => {
                     type="file"
                     id="uploadDocs"
                     multiple
-                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.xls,.xlsx,.ppt,.pptx,.txt"
                     onChange={handleDocumentUpload}
                     style={{ display: 'none' }}
                     disabled={uploadingDocuments}
@@ -530,9 +575,12 @@ const BenchCandidateDetail = () => {
                         </span>
                         <div style={{ flex: 1 }}>
                           <h4 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem' }}>
-                            {doc.originalFilename}
+                            {getDocumentTypeDisplayName(doc.documentType)}
                           </h4>
-                          <p style={{ fontSize: '0.875rem', color: '#6B7280' }}>
+                          <p style={{ fontSize: '0.75rem', color: '#6B7280', marginBottom: '0.25rem' }}>
+                            {doc.originalFilename}
+                          </p>
+                          <p style={{ fontSize: '0.75rem', color: '#6B7280' }}>
                             {doc.formattedFileSize} • Uploaded {new Date(doc.uploadedAt).toLocaleDateString()}
                           </p>
                           {doc.documentType && doc.documentType !== 'OTHER' && (
@@ -1004,7 +1052,12 @@ const BenchCandidateDetail = () => {
             }}>
               <h3>{documentPreview.filename}</h3>
               <button
-                onClick={() => setDocumentPreview(null)}
+                onClick={() => {
+                  if (documentPreview.url) {
+                    URL.revokeObjectURL(documentPreview.url);
+                  }
+                  setDocumentPreview(null);
+                }}
                 style={{
                   background: '#EF4444',
                   color: 'white',
@@ -1024,7 +1077,7 @@ const BenchCandidateDetail = () => {
                   style={{ width: '70vw', height: '70vh', border: 'none' }}
                   title="Document Preview"
                 />
-              ) : ['jpg', 'jpeg', 'png'].includes(documentPreview.type) ? (
+              ) : ['jpg', 'jpeg', 'png', 'gif'].includes(documentPreview.type) ? (
                 <img
                   src={documentPreview.url}
                   alt="Document Preview"

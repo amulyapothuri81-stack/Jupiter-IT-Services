@@ -32,6 +32,7 @@ const BenchCandidateForm = () => {
     otherVisaStatus: '',
     startDate: '',
     endDate: '',
+    visaNotes: '', // New field for immigration notes
     
     // Professional Skills
     primarySkill: '',
@@ -77,9 +78,9 @@ const BenchCandidateForm = () => {
   ];
 
   const documentTypeOptions = [
+    { value: 'RESUME', label: 'Resume/CV' },
     { value: 'I94', label: 'I-94 Document' },
     { value: 'PASSPORT', label: 'Passport' },
-    { value: 'RESUME', label: 'Resume/CV' },
     { value: 'VISA_DOCUMENT', label: 'Visa Document' },
     { value: 'EAD', label: 'EAD Card' },
     { value: 'SSN', label: 'SSN Card' },
@@ -139,6 +140,7 @@ const BenchCandidateForm = () => {
         otherVisaStatus: candidate.otherVisaStatus || '',
         startDate: candidate.startDate || '',
         endDate: candidate.endDate || '',
+        visaNotes: candidate.visaNotes || '',
         primarySkill: candidate.primarySkill || '',
         otherPrimarySkill: candidate.otherPrimarySkill || '',
         additionalSkills: candidate.additionalSkills || '',
@@ -188,19 +190,46 @@ const BenchCandidateForm = () => {
     setShowPrimarySkillDropdown(false);
   };
 
-  const handleFileChange = (e, index) => {
+  const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
     const newDocuments = [...documents];
     
     files.forEach(file => {
+      // Validate file types - support more types
+      const allowedTypes = [
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'image/jpeg',
+        'image/jpg',
+        'image/png',
+        'image/gif',
+        'image/bmp',
+        'image/webp',
+        'text/plain'
+      ];
+      
+      if (!allowedTypes.includes(file.type)) {
+        toast.error(`File type ${file.type} is not supported. Please upload PDF, Word documents, or images.`);
+        return;
+      }
+
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error(`File ${file.name} is too large. Maximum size is 10MB.`);
+        return;
+      }
+
       newDocuments.push({
         file,
-        type: '',
+        type: 'RESUME', // Default type
         id: Date.now() + Math.random()
       });
     });
     
     setDocuments(newDocuments);
+    // Reset file input
+    e.target.value = '';
   };
 
   const handleDocumentTypeChange = (docId, type) => {
@@ -221,8 +250,16 @@ const BenchCandidateForm = () => {
     if (!formData.lastName.trim()) errors.push('Last Name is required');
     if (!formData.phoneNumber.trim()) errors.push('Phone Number is required');
     if (!formData.email.trim()) errors.push('Email is required');
+    if (!formData.city.trim()) errors.push('City is required');
+    if (!formData.state.trim()) errors.push('State is required');
     if (!formData.primarySkill.trim()) errors.push('Primary Skill is required');
     if (!formData.yearsOfExperience) errors.push('Years of Experience is required');
+    
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (formData.email && !emailRegex.test(formData.email)) {
+      errors.push('Please enter a valid email address');
+    }
     
     if (formData.visaStatus === 'OTHER' && !formData.otherVisaStatus.trim()) {
       errors.push('Please specify the visa status');
@@ -272,12 +309,13 @@ const BenchCandidateForm = () => {
         lastName: formData.lastName,
         passportNumber: formData.passportNumber,
         countryOfCitizenship: formData.countryOfCitizenship,
-        linkedinUrl: formData.linkedinUrl,
+        linkedinUrl: formData.linkedinUrl, // Keep as text field
         address1: formData.address1,
         address2: formData.address2,
         country: formData.country,
         startDate: formData.startDate,
         endDate: formData.endDate,
+        visaNotes: formData.visaNotes, // Add visa notes
         additionalSkills: formData.additionalSkills,
         domains: formData.domains.join(',')
       };
@@ -289,11 +327,11 @@ const BenchCandidateForm = () => {
         }
       });
 
-      // Append document files with their types
-      documents.forEach((doc, index) => {
+      // Append document files with their types - Fixed multiple file upload
+      documents.forEach((doc) => {
         if (doc.file && doc.type) {
           submitData.append('documents', doc.file);
-          submitData.append(`documentTypes`, doc.type);
+          submitData.append('documentTypes', doc.type);
         }
       });
 
@@ -307,6 +345,7 @@ const BenchCandidateForm = () => {
 
       navigate('/bench-candidates');
     } catch (error) {
+      console.error('Submission error:', error);
       const message = error.response?.data?.message || 
         `Failed to ${isEdit ? 'update' : 'create'} bench candidate`;
       toast.error(message);
@@ -327,7 +366,11 @@ const BenchCandidateForm = () => {
       case 'docx': return '📝';
       case 'jpg':
       case 'jpeg':
-      case 'png': return '🖼️';
+      case 'png':
+      case 'gif':
+      case 'bmp':
+      case 'webp': return '🖼️';
+      case 'txt': return '📄';
       default: return '📎';
     }
   };
@@ -347,24 +390,22 @@ const BenchCandidateForm = () => {
 
   return (
     <div className="bench-form-container">
-      {/* Header */}
-      <div className="form-header">
+      {/* Compact Header */}
+      <div className="form-header-compact">
         <div>
           <h1>{isEdit ? 'Edit Bench Candidate' : 'Add New Bench Candidate'}</h1>
-          <p>Fill in comprehensive candidate details for bench profile management</p>
+          <p>Complete candidate profile information</p>
         </div>
-        <button onClick={handleCancel} className="btn-close">
-          ✕ Close
-        </button>
+        <button onClick={handleCancel} className="btn-close">✕</button>
       </div>
 
-      <form onSubmit={handleSubmit} className="enhanced-form">
-        {/* Personal Details Section */}
-        <div className="form-section">
-          <div className="section-header">
-            <h3>👤 Personal Details</h3>
+      <form onSubmit={handleSubmit} className="enhanced-form-compact">
+        {/* Personal Details Section - Compact */}
+        <div className="form-section-compact">
+          <div className="section-header-compact">
+            <h3>Personal Information</h3>
           </div>
-          <div className="form-grid">
+          <div className="form-grid-compact">
             <div className="form-group">
               <label className="form-label required">First Name</label>
               <input
@@ -386,7 +427,7 @@ const BenchCandidateForm = () => {
                 value={formData.middleName}
                 onChange={handleChange}
                 className="form-input"
-                placeholder="Enter middle name (optional)"
+                placeholder="Enter middle name"
               />
             </div>
 
@@ -430,6 +471,18 @@ const BenchCandidateForm = () => {
             </div>
 
             <div className="form-group">
+              <label className="form-label">LinkedIn URL</label>
+              <input
+                type="text"
+                name="linkedinUrl"
+                value={formData.linkedinUrl}
+                onChange={handleChange}
+                className="form-input"
+                placeholder="www.linkedin.com/in/username"
+              />
+            </div>
+
+            <div className="form-group">
               <label className="form-label">Passport Number</label>
               <input
                 type="text"
@@ -455,37 +508,15 @@ const BenchCandidateForm = () => {
                 ))}
               </select>
             </div>
-
-            <div className="form-group">
-              <label className="form-label">LinkedIn URL</label>
-              <input
-                type="url"
-                name="linkedinUrl"
-                value={formData.linkedinUrl}
-                onChange={handleChange}
-                className="form-input"
-                placeholder="https://linkedin.com/in/username"
-              />
-              {formData.linkedinUrl && (
-                <a 
-                  href={formData.linkedinUrl} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="linkedin-link"
-                >
-                  🔗 View LinkedIn Profile
-                </a>
-              )}
-            </div>
           </div>
         </div>
 
-        {/* Address Section */}
-        <div className="form-section">
-          <div className="section-header">
-            <h3>🏠 Address Information</h3>
+        {/* Address Section - Compact */}
+        <div className="form-section-compact">
+          <div className="section-header-compact">
+            <h3>Address Information</h3>
           </div>
-          <div className="form-grid">
+          <div className="form-grid-compact">
             <div className="form-group">
               <label className="form-label">Address Line 1</label>
               <input
@@ -506,30 +537,32 @@ const BenchCandidateForm = () => {
                 value={formData.address2}
                 onChange={handleChange}
                 className="form-input"
-                placeholder="Apartment, suite, etc. (optional)"
+                placeholder="Apartment, suite, etc."
               />
             </div>
 
             <div className="form-group">
-              <label className="form-label">City</label>
+              <label className="form-label required">City</label>
               <input
                 type="text"
                 name="city"
                 value={formData.city}
                 onChange={handleChange}
                 className="form-input"
+                required
                 placeholder="Enter city"
               />
             </div>
 
             <div className="form-group">
-              <label className="form-label">State</label>
+              <label className="form-label required">State</label>
               <input
                 type="text"
                 name="state"
                 value={formData.state}
                 onChange={handleChange}
                 className="form-input"
+                required
                 placeholder="Enter state"
               />
             </div>
@@ -551,12 +584,12 @@ const BenchCandidateForm = () => {
           </div>
         </div>
 
-        {/* Immigration Details Section */}
-        <div className="form-section">
-          <div className="section-header">
-            <h3>🛂 Immigration Details</h3>
+        {/* Immigration Details Section - Compact with Notes */}
+        <div className="form-section-compact">
+          <div className="section-header-compact">
+            <h3>Immigration Details</h3>
           </div>
-          <div className="form-grid">
+          <div className="form-grid-compact">
             <div className="form-group">
               <label className="form-label required">Visa Status</label>
               <select
@@ -608,15 +641,27 @@ const BenchCandidateForm = () => {
                 className="form-input"
               />
             </div>
+
+            <div className="form-group full-width">
+              <label className="form-label">Immigration Notes</label>
+              <textarea
+                name="visaNotes"
+                value={formData.visaNotes}
+                onChange={handleChange}
+                className="form-input"
+                rows="2"
+                placeholder="Any additional visa or immigration related information..."
+              />
+            </div>
           </div>
         </div>
 
-        {/* Professional Skills Section */}
-        <div className="form-section">
-          <div className="section-header">
-            <h3>💼 Professional Skills</h3>
+        {/* Professional Skills Section - Compact */}
+        <div className="form-section-compact">
+          <div className="section-header-compact">
+            <h3>Professional Skills</h3>
           </div>
-          <div className="form-grid">
+          <div className="form-grid-compact">
             <div className="form-group">
               <label className="form-label required">Primary Skill</label>
               <div className="skill-search-container">
@@ -670,18 +715,6 @@ const BenchCandidateForm = () => {
             )}
 
             <div className="form-group">
-              <label className="form-label">Additional Skills</label>
-              <textarea
-                name="additionalSkills"
-                value={formData.additionalSkills}
-                onChange={handleChange}
-                className="form-input"
-                rows="3"
-                placeholder="List additional skills, separated by commas"
-              />
-            </div>
-
-            <div className="form-group">
               <label className="form-label required">Years of Experience</label>
               <input
                 type="number"
@@ -692,36 +725,10 @@ const BenchCandidateForm = () => {
                 required
                 min="0"
                 max="50"
-                placeholder="Enter years of experience"
+                placeholder="Enter years"
               />
             </div>
 
-            <div className="form-group full-width">
-              <label className="form-label">Domain Experience</label>
-              <div className="checkbox-grid">
-                {domainOptions.map(domain => (
-                  <label key={domain} className="checkbox-label">
-                    <input
-                      type="checkbox"
-                      name="domains"
-                      value={domain}
-                      checked={formData.domains.includes(domain)}
-                      onChange={handleChange}
-                    />
-                    <span>{domain}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Additional Information */}
-        <div className="form-section">
-          <div className="section-header">
-            <h3>💰 Additional Information</h3>
-          </div>
-          <div className="form-grid">
             <div className="form-group">
               <label className="form-label">Target Rate ($/hr)</label>
               <input
@@ -744,33 +751,51 @@ const BenchCandidateForm = () => {
                 onChange={handleChange}
                 className="form-input"
               >
-                <option value="">Select Consultant (Optional)</option>
+                <option value="">Select Consultant</option>
                 {employees.map(employee => (
                   <option key={employee.id} value={employee.id}>
-                    {employee.fullName} - {employee.role}
+                    {employee.fullName}
                   </option>
                 ))}
               </select>
             </div>
-          </div>
 
-          <div className="form-group full-width">
-            <label className="form-label">Notes</label>
-            <textarea
-              name="notes"
-              value={formData.notes}
-              onChange={handleChange}
-              className="form-input"
-              rows="4"
-              placeholder="Additional notes about the candidate..."
-            />
+            <div className="form-group full-width">
+              <label className="form-label">Additional Skills</label>
+              <textarea
+                name="additionalSkills"
+                value={formData.additionalSkills}
+                onChange={handleChange}
+                className="form-input"
+                rows="2"
+                placeholder="List additional skills, separated by commas"
+              />
+            </div>
+
+            <div className="form-group full-width">
+              <label className="form-label">Domain Experience</label>
+              <div className="checkbox-grid-compact">
+                {domainOptions.map(domain => (
+                  <label key={domain} className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      name="domains"
+                      value={domain}
+                      checked={formData.domains.includes(domain)}
+                      onChange={handleChange}
+                    />
+                    <span>{domain}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Documents Upload Section */}
-        <div className="form-section">
-          <div className="section-header">
-            <h3>📎 Document Upload</h3>
+        {/* Documents Upload Section - Fixed */}
+        <div className="form-section-compact">
+          <div className="section-header-compact">
+            <h3>Document Upload</h3>
           </div>
           
           <div className="form-group">
@@ -779,19 +804,19 @@ const BenchCandidateForm = () => {
               type="file"
               onChange={handleFileChange}
               className="form-input"
-              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.bmp,.webp,.txt"
               multiple
             />
             <div className="file-info">
-              Accepted formats: PDF, DOC, DOCX, JPG, PNG (Max size: 10MB per file)
+              Supported: PDF, Word, Images, Text files (Max: 10MB each)
             </div>
           </div>
 
           {documents.length > 0 && (
-            <div className="documents-preview">
-              <h4>Uploaded Documents</h4>
-              {documents.map((doc, index) => (
-                <div key={doc.id} className="document-item">
+            <div className="documents-preview-compact">
+              <h4>Documents to Upload ({documents.length})</h4>
+              {documents.map((doc) => (
+                <div key={doc.id} className="document-item-compact">
                   <div className="document-info">
                     <span className="file-icon">{getFileIcon(doc.file.name)}</span>
                     <span className="file-name">{doc.file.name}</span>
@@ -800,28 +825,25 @@ const BenchCandidateForm = () => {
                     </span>
                   </div>
                   
-                  <div className="document-type">
-                    <select
-                      value={doc.type}
-                      onChange={(e) => handleDocumentTypeChange(doc.id, e.target.value)}
-                      className="form-input document-type-select"
-                      required
-                    >
-                      <option value="">Select Document Type</option>
-                      {documentTypeOptions.map(option => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <select
+                    value={doc.type}
+                    onChange={(e) => handleDocumentTypeChange(doc.id, e.target.value)}
+                    className="form-input document-type-select"
+                    required
+                  >
+                    {documentTypeOptions.map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
                   
                   <button
                     type="button"
                     onClick={() => removeDocument(doc.id)}
                     className="btn-remove"
                   >
-                    🗑️
+                    ✕
                   </button>
                 </div>
               ))}
@@ -829,8 +851,25 @@ const BenchCandidateForm = () => {
           )}
         </div>
 
+        {/* Notes Section */}
+        <div className="form-section-compact">
+          <div className="section-header-compact">
+            <h3>Additional Notes</h3>
+          </div>
+          <div className="form-group">
+            <textarea
+              name="notes"
+              value={formData.notes}
+              onChange={handleChange}
+              className="form-input"
+              rows="3"
+              placeholder="Additional notes about the candidate..."
+            />
+          </div>
+        </div>
+
         {/* Form Actions */}
-        <div className="form-actions">
+        <div className="form-actions-compact">
           <button
             type="button"
             onClick={handleCancel}
