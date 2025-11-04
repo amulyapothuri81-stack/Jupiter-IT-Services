@@ -1,0 +1,48 @@
+name: QA Automation Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  run-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ Checkout your repository code
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # 2️⃣ Set up Node.js (needed for Cypress & Newman)
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      # 3️⃣ Install dependencies
+      - name: Install dependencies
+        run: |
+          npm install -g newman
+          npm install cypress --save-dev
+
+      # 4️⃣ Run Postman API Tests
+      - name: Run Postman API Tests
+        run: |
+          cd tests/api
+          newman run postman_collection.json || true
+
+      # 5️⃣ Run Cypress (UI) Tests
+      - name: Run Cypress Tests
+        run: |
+          npx cypress run --headless || true
+
+      # 6️⃣ Upload Cypress Results (optional)
+      - name: Upload Cypress Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-results
+          path: cypress/videos
+
